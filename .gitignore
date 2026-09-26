@@ -1,0 +1,56 @@
+# ---- .NET ----
+# Carpetas de compilación
+bin/
+obj/
+out/
+
+# Archivos de usuario / IDE
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Rider
+.idea/
+*.sln.iml
+
+# Resultados de pruebas
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.trx
+*.coverage
+*.coveragexml
+
+# Paquetes NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+# Archivos de publicación / despliegue
+publish/
+*.publishsettings
+PublishScripts/
+
+# ---- Entorno / secretos ----
+*.env
+.env.*
+appsettings.*.local.json
+secrets.json
+
+# ---- Sistema operativo ----
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+
+# Linux
+*~
