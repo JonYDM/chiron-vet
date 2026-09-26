@@ -37,6 +37,7 @@ No inventamos una categoría nueva; mejoramos lo existente:
 |---|---|---|
 | Lenguaje | **C# / .NET 8 (LTS)** | SOLID y DI nativos, alto rendimiento, tipado fuerte, multiplataforma |
 | Arquitectura | **Clean Architecture** (Domain, Application, Infrastructure, ConsoleApp) | Separación de capas, inversión de dependencias |
+| Estilo de despliegue | **Monolito modular** (no microservicios al inicio) | Rápido, barato y manejable para un solo dev; se puede evolucionar a servicios cuando el negocio lo pida |
 | Base de datos (futuro) | **PostgreSQL** | Gratis, potente, corre excelente en Linux |
 | Pruebas iniciales | **Repositorio en memoria** | No requiere instalar BD todavía |
 | Despliegue (futuro) | **Ubuntu/Linux + Docker + Nginx** | Servidor barato, mismo código sin cambios |
@@ -48,6 +49,13 @@ No inventamos una categoría nueva; mejoramos lo existente:
 - **Código mantenible y legible**.
 - **Eficiencia de cómputo**: evitar lógica y comparaciones redundantes (ej: para enteros, `> 1` en vez de `>= 2`).
 - **Multiplataforma desde el día 1**: sin APIs ni rutas exclusivas de Windows.
+
+### Decisión arquitectónica: Monolito modular
+- Se inicia con un **monolito modular**, NO con microservicios/SOA.
+- Razón: para un solo desarrollador y un producto en validación, microservicios agregan complejidad y costo sin beneficio. Regla "MonolithFirst" (Martin Fowler).
+- El código se organiza por **módulos de negocio** (Clientes, Mascotas, Expedientes, Citas, Recordatorios, PuntoVenta) con bajo acoplamiento y alta cohesión.
+- Gracias a Clean Architecture + SOLID + DI, si un módulo necesitara escalar de forma independiente en el futuro, puede **extraerse a un microservicio** sin reescribir el resto.
+- Señales para migrar a servicios: múltiples clientes con necesidades de escalado independiente, equipos grandes, despliegue independiente de módulos.
 
 ---
 
