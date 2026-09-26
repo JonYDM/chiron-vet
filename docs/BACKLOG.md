@@ -12,7 +12,7 @@ Base del proyecto con Clean Architecture y DI.
 
 | ID | Historia | Estado |
 |----|----------|--------|
-| H1.1 | Inicializar solución .NET con capas (Domain, Application, Infrastructure, ConsoleApp) + `.gitignore` | ⬜ |
+| H1.1 | Inicializar solución .NET con capas (Domain, Application, Infrastructure, ConsoleApp) + `.gitignore` | ✅ |
 | H1.2 | Configurar inyección de dependencias en la app de consola | ⬜ |
 | H1.3 | Crear contrato de repositorio genérico + repositorio base en memoria (intercambiable) | ⬜ |
 
