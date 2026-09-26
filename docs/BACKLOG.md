@@ -13,7 +13,7 @@ Base del proyecto con Clean Architecture y DI.
 | ID | Historia | Estado |
 |----|----------|--------|
 | H1.1 | Inicializar solución .NET con capas (Domain, Application, Infrastructure, ConsoleApp) + `.gitignore` | ✅ |
-| H1.2 | Configurar inyección de dependencias en la app de consola | ⬜ |
+| H1.2 | Configurar inyección de dependencias en la app de consola | ✅ |
 | H1.3 | Crear contrato de repositorio genérico + repositorio base en memoria (intercambiable) | ⬜ |
 
 ## ÉPICA 2 — Gestión de clientes y mascotas (el corazón)
@@ -58,7 +58,7 @@ Base del proyecto con Clean Architecture y DI.
 | ID | Historia | Estado |
 |----|----------|--------|
 | H8.1 | Exponer API REST (ASP.NET Core Web API) | ⬜ |
-| H8.2 | Interfaz web (celular + computadora) | ⬜ |
+| H8.2 | Interfaz web (celular + computadora) — opciones: React/Vue (aprovecha Node) o Blazor (solo C#). Móvil futuro: .NET MAUI | ⬜ |
 | H8.3 | Integración real de WhatsApp para recordatorios | ⬜ |
 
 ---
