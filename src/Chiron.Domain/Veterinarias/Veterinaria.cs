@@ -20,6 +20,13 @@ public sealed class Veterinaria : EntidadBase
     /// <summary>Indica si la suscripción está activa (base para el modelo de renta).</summary>
     public bool Activa { get; private set; }
 
+    /// <summary>
+    /// Indica si el Administrador de esta veterinaria puede operar (registrar, vender,
+    /// atender) además de ver métricas y gestionar el equipo. Si es false, el Admin es
+    /// un supervisor puro (solo métricas + equipo). Lo configura el SuperAdmin.
+    /// </summary>
+    public bool AdminOperativo { get; private set; }
+
     /// <summary>Fecha de alta de la veterinaria (UTC).</summary>
     public DateTime FechaAlta { get; private set; }
 
@@ -28,6 +35,7 @@ public sealed class Veterinaria : EntidadBase
         Nombre = nombre;
         Telefono = telefono;
         Activa = true;
+        AdminOperativo = true;
         FechaAlta = DateTime.UtcNow;
     }
 
@@ -51,4 +59,7 @@ public sealed class Veterinaria : EntidadBase
 
     /// <summary>Reactiva la veterinaria (ej: pago de suscripción).</summary>
     public void Activar() => Activa = true;
+
+    /// <summary>Define si el Administrador puede operar (true) o es supervisor puro (false).</summary>
+    public void EstablecerAdminOperativo(bool operativo) => AdminOperativo = operativo;
 }
