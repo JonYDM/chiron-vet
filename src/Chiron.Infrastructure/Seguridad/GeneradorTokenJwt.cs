@@ -27,6 +27,7 @@ public sealed class GeneradorTokenJwt : IGeneradorToken
             new("nombreUsuario", datos.NombreUsuario),
             new("veterinariaId", datos.VeterinariaId.ToString()),
             new(ClaimTypes.Role, datos.Rol.ToString()),
+            new("adminOperativo", datos.AdminOperativo ? "true" : "false"),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 

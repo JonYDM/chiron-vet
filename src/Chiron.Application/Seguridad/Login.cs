@@ -9,7 +9,8 @@ namespace Chiron.Application.Seguridad;
 public sealed record LoginComando(string Identificador, string Pin);
 
 /// <summary>Resultado del login: token, expiración y datos básicos del usuario.</summary>
-public sealed record LoginResultado(string Token, DateTime ExpiraEn, string Nombre, RolUsuario Rol);
+public sealed record LoginResultado(
+    string Token, DateTime ExpiraEn, string Nombre, RolUsuario Rol, bool AdminOperativo);
 
 /// <summary>
 /// Caso de uso: autenticar con identificador + PIN y emitir un JWT.
@@ -65,21 +66,25 @@ public sealed class Login
         }
 
         // Control de suscripción (el SuperAdmin no depende de una veterinaria).
+        bool adminOperativo = true;
         if (usuario.Rol != RolUsuario.SuperAdmin)
         {
             Veterinaria? vet = await _veterinarias.ObtenerPorIdAsync(usuario.VeterinariaId, cancellationToken);
             if (vet is null || !vet.Activa)
                 return Result<LoginResultado>.Falla("La veterinaria está inactiva. Contacte al proveedor.");
+            adminOperativo = vet.AdminOperativo;
         }
 
         // Login exitoso: reiniciar contadores y emitir token.
         usuario.RegistrarLoginExitoso();
         await _usuarios.ActualizarAsync(usuario, cancellationToken);
 
-        var datos = new DatosToken(usuario.Id, usuario.VeterinariaId, usuario.NombreUsuario, usuario.Rol, usuario.ClienteId);
+        var datos = new DatosToken(
+            usuario.Id, usuario.VeterinariaId, usuario.NombreUsuario, usuario.Rol,
+            usuario.ClienteId, adminOperativo);
         (string token, DateTime expiraEn) = _generadorToken.Generar(datos);
 
         return Result<LoginResultado>.Exito(
-            new LoginResultado(token, expiraEn, usuario.Nombre, usuario.Rol));
+            new LoginResultado(token, expiraEn, usuario.Nombre, usuario.Rol, adminOperativo));
     }
 }
