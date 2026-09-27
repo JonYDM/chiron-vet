@@ -2,6 +2,7 @@ using Chiron.Application.Citas;
 using Chiron.Application.Clientes;
 using Chiron.Application.Expedientes;
 using Chiron.Application.Mascotas;
+using Chiron.Application.Recordatorios;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Chiron.Application;
@@ -27,6 +28,9 @@ public static class DependencyInjection
 
         services.AddTransient<AgendarCita>();
         services.AddTransient<VerAgenda>();
+
+        services.AddTransient<GenerarRecordatorios>();
+        services.AddTransient<EnviarRecordatorios>();
 
         return services;
     }

@@ -49,8 +49,8 @@ Núcleo que permite rentar el software a múltiples veterinarias con aislamiento
 ## ÉPICA 5 — Recordatorios (diferenciador)
 | ID | Historia | Estado |
 |----|----------|--------|
-| H5.1 | Detectar vacunas/citas próximas a vencer | ⬜ |
-| H5.2 | Generar mensajes de recordatorio (base para WhatsApp) | ⬜ |
+| H5.1 | Detectar vacunas/citas próximas a vencer | ✅ |
+| H5.2 | Generar mensajes de recordatorio (base para WhatsApp) | ✅ |
 
 ## ÉPICA 6 — Punto de venta
 | ID | Historia | Estado |
