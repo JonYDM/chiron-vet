@@ -2,6 +2,7 @@ using Chiron.Application.Citas;
 using Chiron.Application.Clientes;
 using Chiron.Application.Expedientes;
 using Chiron.Application.Mascotas;
+using Chiron.Application.PuntoVenta;
 using Chiron.Application.Recordatorios;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -31,6 +32,10 @@ public static class DependencyInjection
 
         services.AddTransient<GenerarRecordatorios>();
         services.AddTransient<EnviarRecordatorios>();
+
+        services.AddTransient<AgregarProducto>();
+        services.AddTransient<ListarCatalogo>();
+        services.AddTransient<RegistrarVenta>();
 
         return services;
     }

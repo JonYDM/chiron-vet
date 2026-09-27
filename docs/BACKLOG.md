@@ -55,8 +55,8 @@ Núcleo que permite rentar el software a múltiples veterinarias con aislamiento
 ## ÉPICA 6 — Punto de venta
 | ID | Historia | Estado |
 |----|----------|--------|
-| H6.1 | Catálogo de productos (alimento, medicina) | ⬜ |
-| H6.2 | Registrar venta y cobro | ⬜ |
+| H6.1 | Catálogo de productos (alimento, medicina) | ✅ |
+| H6.2 | Registrar venta y cobro | ✅ |
 
 ## ÉPICA 7 — Persistencia real
 | ID | Historia | Estado |
