@@ -51,6 +51,18 @@ if (!string.IsNullOrWhiteSpace(cadenaPostgres))
 else
     builder.Services.AddInfrastructure(jwtOpciones);
 
+// Almacenamiento de fotos (Cloudflare R2). Credenciales SIEMPRE desde variables de
+// entorno (R2_*), nunca en el código. Si faltan, se usa un almacenamiento nulo.
+var r2Opciones = new Chiron.Infrastructure.Almacenamiento.R2Opciones
+{
+    AccessKeyId = builder.Configuration["R2_ACCESS_KEY_ID"] ?? "",
+    SecretAccessKey = builder.Configuration["R2_SECRET_ACCESS_KEY"] ?? "",
+    Endpoint = builder.Configuration["R2_ENDPOINT"] ?? "",
+    Bucket = builder.Configuration["R2_BUCKET"] ?? "",
+    PublicUrl = builder.Configuration["R2_PUBLIC_URL"] ?? ""
+};
+builder.Services.AddAlmacenamiento(r2Opciones);
+
 // ── Autenticación JWT ──
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -384,6 +396,54 @@ app.MapPost("/api/mascotas/{id:guid}/estado", async (Guid id, EstadoActivoDto dt
     return ToHttp(await uc.EjecutarAsync(id, veterinariaId, dto.Activar));
 })
 .WithName("CambiarEstadoMascota").WithTags("Mascotas")
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
+
+// ═══════════════════ FOTOS DE MASCOTA (galería) ═══════════════════
+// Subir una foto a la galería de una mascota (multipart/form-data, campo "archivo").
+// Opcionalmente se liga a un registro médico vía query ?registroMedicoId=...
+app.MapPost("/api/mascotas/{id:guid}/fotos", async (
+    Guid id, IFormFile archivo, Guid? registroMedicoId, ClaimsPrincipal user, GestionFotoMascota uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+
+    string? subId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? user.FindFirst("sub")?.Value;
+    if (!Guid.TryParse(subId, out Guid usuarioId))
+        return Results.BadRequest(new { error = "Token sin usuario válido." });
+
+    if (archivo is null || archivo.Length == 0)
+        return Results.BadRequest(new { error = "No se recibió ninguna imagen." });
+
+    using var ms = new MemoryStream();
+    await archivo.CopyToAsync(ms);
+
+    var comando = new SubirFotoComando(veterinariaId, id, ms.ToArray(), usuarioId, registroMedicoId);
+    return ToHttp(await uc.SubirAsync(comando));
+})
+.WithName("SubirFotoMascota").WithTags("Mascotas")
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista))
+.DisableAntiforgery();
+
+// Listar la galería de una mascota (staff y también el dueño la ve en su portal).
+app.MapGet("/api/mascotas/{id:guid}/fotos", async (Guid id, ClaimsPrincipal user, GestionFotoMascota uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+    return ToHttp(await uc.ListarAsync(veterinariaId, id));
+})
+.WithName("ListarFotosMascota").WithTags("Mascotas")
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista, DuenoMascota));
+
+// Eliminar una foto (cualquier staff de la veterinaria).
+app.MapDelete("/api/mascotas/{id:guid}/fotos/{fotoId:guid}", async (
+    Guid id, Guid fotoId, ClaimsPrincipal user, GestionFotoMascota uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+    return ToHttp(await uc.EliminarAsync(veterinariaId, id, fotoId));
+})
+.WithName("EliminarFotoMascota").WithTags("Mascotas")
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
 // Crear SOLO un cliente (sin mascota). El veterinariaId sale del token.
