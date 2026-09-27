@@ -204,15 +204,24 @@ namespace Chiron.Infrastructure.Migrations
                     b.Property<bool>("Activo")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("Correo")
+                    b.Property<DateTime?>("BloqueadoHasta")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ClienteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("HashPin")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("HashContrasena")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int>("IntentosFallidos")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NombreUsuario")
                         .IsRequired()
                         .HasColumnType("text");
 

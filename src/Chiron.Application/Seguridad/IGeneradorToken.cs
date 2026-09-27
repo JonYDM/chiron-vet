@@ -7,9 +7,11 @@ namespace Chiron.Application.Seguridad;
 /// </summary>
 /// <param name="UsuarioId">Id del usuario.</param>
 /// <param name="VeterinariaId">Tenant al que pertenece (aislamiento multi-tenant).</param>
-/// <param name="Correo">Correo del usuario.</param>
+/// <param name="NombreUsuario">Identificador de acceso (usuario o teléfono).</param>
 /// <param name="Rol">Rol para autorización.</param>
-public sealed record DatosToken(Guid UsuarioId, Guid VeterinariaId, string Correo, RolUsuario Rol);
+/// <param name="ClienteId">Cliente asociado (solo para dueños de mascota), o null.</param>
+public sealed record DatosToken(
+    Guid UsuarioId, Guid VeterinariaId, string NombreUsuario, RolUsuario Rol, Guid? ClienteId);
 
 /// <summary>
 /// Abstracción para generar tokens JWT firmados. La implementación (con la clave secreta

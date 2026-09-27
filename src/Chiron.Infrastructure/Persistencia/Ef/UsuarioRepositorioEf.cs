@@ -9,6 +9,6 @@ public sealed class UsuarioRepositorioEf : RepositorioEf<Usuario>, IUsuarioRepos
 {
     public UsuarioRepositorioEf(ChironDbContext contexto) : base(contexto) { }
 
-    public async Task<Usuario?> ObtenerPorCorreoAsync(string correo, CancellationToken cancellationToken = default)
-        => await Conjunto.FirstOrDefaultAsync(u => u.Correo == correo, cancellationToken);
+    public async Task<Usuario?> ObtenerPorNombreUsuarioAsync(string nombreUsuario, CancellationToken cancellationToken = default)
+        => await Conjunto.FirstOrDefaultAsync(u => u.NombreUsuario == nombreUsuario, cancellationToken);
 }

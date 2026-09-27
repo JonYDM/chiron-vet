@@ -21,14 +21,18 @@ public sealed class GeneradorTokenJwt : IGeneradorToken
         DateTime expiraEn = DateTime.UtcNow.AddMinutes(_opciones.MinutosValidez);
 
         // Claims: información que viaja dentro del token (el backend la lee para autorizar).
-        var claims = new[]
+        var claims = new List<Claim>
         {
-            new Claim(JwtRegisteredClaimNames.Sub, datos.UsuarioId.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, datos.Correo),
-            new Claim("veterinariaId", datos.VeterinariaId.ToString()),
-            new Claim(ClaimTypes.Role, datos.Rol.ToString()),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new(JwtRegisteredClaimNames.Sub, datos.UsuarioId.ToString()),
+            new("nombreUsuario", datos.NombreUsuario),
+            new("veterinariaId", datos.VeterinariaId.ToString()),
+            new(ClaimTypes.Role, datos.Rol.ToString()),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
+
+        // Para dueños de mascota, incluir su ClienteId (para filtrar sus datos).
+        if (datos.ClienteId is { } clienteId)
+            claims.Add(new Claim("clienteId", clienteId.ToString()));
 
         var clave = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_opciones.Clave));
         var credenciales = new SigningCredentials(clave, SecurityAlgorithms.HmacSha256);

@@ -27,7 +27,7 @@ public sealed class EnviarRecordatorios
         Guid veterinariaId, int diasAnticipacion = 7, CancellationToken cancellationToken = default)
     {
         IReadOnlyList<RecordatorioDetectado> detectados =
-            await _generar.DetectarAsync(veterinariaId, diasAnticipacion, cancellationToken);
+            await _generar.DetectarParaEnvioAsync(veterinariaId, diasAnticipacion, cancellationToken);
 
         int enviados = 0;
         foreach (RecordatorioDetectado r in detectados)

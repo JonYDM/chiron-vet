@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using Chiron.Application;
 using Chiron.Application.Citas;
@@ -107,17 +108,42 @@ if (string.IsNullOrWhiteSpace(cadenaPostgres))
     Veterinaria vetDemo = Veterinaria.Crear("Veterinaria Demo", "7770000000").Valor!;
     await repoVet.AgregarAsync(vetDemo);
 
-    // SuperAdmin (dueño de Chiron). No pertenece a ninguna veterinaria real.
-    Usuario superAdmin = Usuario.Crear(
-        Guid.NewGuid(), "Super Admin", "super@chiron.mx",
-        hasheador.Hashear("Super123!"), RolUsuario.SuperAdmin).Valor!;
+    // SuperAdmin (dueño de Chiron). Identificador: nombre de usuario "superadmin", PIN 6 dígitos.
+    Usuario superAdmin = Usuario.CrearStaff(
+        Guid.Empty, "superadmin", "Super Admin",
+        hasheador.Hashear("123456"), RolUsuario.SuperAdmin).Valor!;
     await repoUsuarios.AgregarAsync(superAdmin);
 
-    // Administrador de la veterinaria demo.
-    Usuario admin = Usuario.Crear(
-        vetDemo.Id, "Admin Demo", "admin@demo.mx",
-        hasheador.Hashear("Admin123!"), RolUsuario.Administrador).Valor!;
+    // Administrador de la veterinaria demo. Usuario "admindemo", PIN 6 dígitos.
+    Usuario admin = Usuario.CrearStaff(
+        vetDemo.Id, "admindemo", "Admin Demo",
+        hasheador.Hashear("654321"), RolUsuario.Administrador).Valor!;
     await repoUsuarios.AgregarAsync(admin);
+
+    // Cliente + mascota + vacuna próxima, y un usuario DUEÑO ligado a ese cliente.
+    var repoClientes = scope.ServiceProvider.GetRequiredService<Chiron.Application.Clientes.IClienteRepository>();
+    var repoMascotas = scope.ServiceProvider.GetRequiredService<Chiron.Application.Mascotas.IMascotaRepository>();
+    var repoRegistros = scope.ServiceProvider.GetRequiredService<Chiron.Application.Expedientes.IRegistroMedicoRepository>();
+
+    var cliente = Chiron.Domain.Clientes.Cliente.Crear(
+        vetDemo.Id, "María Dueña", "7771234567", Chiron.Domain.Clientes.OrigenCliente.Recomendacion).Valor!;
+    await repoClientes.AgregarAsync(cliente);
+
+    var mascota = Chiron.Domain.Mascotas.Mascota.Crear(
+        vetDemo.Id, cliente.Id, "Firulais", Chiron.Domain.Mascotas.EspecieMascota.Perro).Valor!;
+    await repoMascotas.AgregarAsync(mascota);
+
+    var hoy = DateOnly.FromDateTime(DateTime.UtcNow);
+    var vacuna = Chiron.Domain.Expedientes.RegistroMedico.Crear(
+        vetDemo.Id, mascota.Id, Chiron.Domain.Expedientes.TipoRegistroMedico.Vacuna,
+        hoy.AddDays(-365), "Vacuna antirrábica", hoy.AddDays(5)).Valor!;
+    await repoRegistros.AgregarAsync(vacuna);
+
+    // Usuario dueño: identificador = su teléfono, PIN 6 dígitos, ligado al cliente.
+    Usuario dueno = Usuario.CrearDueno(
+        vetDemo.Id, cliente.Id, "7771234567", "María Dueña",
+        hasheador.Hashear("111222")).Valor!;
+    await repoUsuarios.AgregarAsync(dueno);
 }
 
 app.MapGet("/", () => Results.Redirect("/swagger"));
@@ -130,6 +156,7 @@ const string SuperAdmin = nameof(RolUsuario.SuperAdmin);
 const string Administrador = nameof(RolUsuario.Administrador);
 const string Veterinario = nameof(RolUsuario.Veterinario);
 const string Recepcionista = nameof(RolUsuario.Recepcionista);
+const string DuenoMascota = nameof(RolUsuario.DuenoMascota);
 
 // ═══════════════════ AUTENTICACIÓN (público) ═══════════════════
 app.MapPost("/api/auth/login", async (LoginComando cmd, Login uc) =>
@@ -235,6 +262,59 @@ app.MapPost("/api/veterinarias/{veterinariaId:guid}/recordatorios/enviar", async
     Results.Ok(await uc.EjecutarAsync(veterinariaId, dias ?? 7)))
 .WithName("EnviarRecordatorios").WithTags("Recordatorios")
 .RequireAuthorization(p => p.RequireRole(Administrador));
+
+// ═══════════════════ PORTAL DEL DUEÑO DE MASCOTA (H10.1, H10.2) ═══════════════════
+// El dueño ve SOLO sus datos. El clienteId se toma del token (no de la URL),
+// así es imposible que un dueño consulte los datos de otro.
+
+// Helper local: obtiene el clienteId y veterinariaId del usuario autenticado.
+static (Guid clienteId, Guid veterinariaId)? DatosDueno(ClaimsPrincipal user)
+{
+    string? cli = user.FindFirst("clienteId")?.Value;
+    string? vet = user.FindFirst("veterinariaId")?.Value;
+    if (Guid.TryParse(cli, out Guid clienteId) && Guid.TryParse(vet, out Guid veterinariaId))
+        return (clienteId, veterinariaId);
+    return null;
+}
+
+// Mis mascotas.
+app.MapGet("/api/portal/mis-mascotas", async (ClaimsPrincipal user, ListarMascotasDeCliente uc) =>
+{
+    var datos = DatosDueno(user);
+    if (datos is null) return Results.BadRequest(new { error = "El token no corresponde a un dueño de mascota." });
+    return Results.Ok(await uc.EjecutarAsync(datos.Value.clienteId));
+})
+.WithName("MisMascotas").WithTags("Portal").RequireAuthorization(p => p.RequireRole(DuenoMascota));
+
+// Expediente de una de MIS mascotas (valida que la mascota sea mía).
+app.MapGet("/api/portal/mascotas/{mascotaId:guid}/expediente",
+    async (Guid mascotaId, ClaimsPrincipal user, ListarMascotasDeCliente misMascotas, VerExpedienteMascota expediente) =>
+{
+    var datos = DatosDueno(user);
+    if (datos is null) return Results.BadRequest(new { error = "Token inválido." });
+
+    // Verificar que la mascota pertenezca al dueño autenticado.
+    var mias = await misMascotas.EjecutarAsync(datos.Value.clienteId);
+    if (mias.All(m => m.Id != mascotaId))
+        return Results.Forbid();
+
+    return Results.Ok(await expediente.EjecutarAsync(mascotaId));
+})
+.WithName("MiExpediente").WithTags("Portal").RequireAuthorization(p => p.RequireRole(DuenoMascota));
+
+// Mis recordatorios (vacunas/citas próximas de mis mascotas) — H10.2, in-app.
+app.MapGet("/api/portal/mis-recordatorios", async (ClaimsPrincipal user, int? dias, GenerarRecordatorios uc) =>
+{
+    var datos = DatosDueno(user);
+    if (datos is null) return Results.BadRequest(new { error = "Token inválido." });
+
+    // El portal muestra los recordatorios del propio dueño (in-app). El consentimiento
+    // aplica solo al ENVÍO de notificaciones, no a que el dueño los consulte él mismo.
+    var todos = await uc.DetectarParaPortalAsync(datos.Value.veterinariaId, dias ?? 30);
+    var mios = todos.Where(r => r.ClienteId == datos.Value.clienteId).ToList();
+    return Results.Ok(mios);
+})
+.WithName("MisRecordatorios").WithTags("Portal").RequireAuthorization(p => p.RequireRole(DuenoMascota));
 
 app.Run();
 

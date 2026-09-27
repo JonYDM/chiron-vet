@@ -82,9 +82,12 @@ Ver detalle en `ROADMAP-SEGURIDAD-NOTIFICACIONES.md`.
 ## ÉPICA 10 — Rol Dueño de mascota + Notificaciones
 | ID | Historia | Estado |
 |----|----------|--------|
-| H10.1 | Rol Dueño de mascota (acceso limitado a sus mascotas e historial) | ⬜ |
-| H10.2 | Recordatorios in-app (reusa lógica de detección de Épica 5) | ⬜ |
-| H10.3 | Notificaciones push web (gratis, sin fricción de Meta) | ⬜ |
+| H10.1 | Rol Dueño de mascota (acceso limitado a sus mascotas e historial) | ✅ |
+| H10.2 | Recordatorios in-app (reusa lógica de detección de Épica 5) | ✅ |
+| H10.3 | Notificaciones push web (gratis, sin fricción de Meta) | ⬜ (depende del frontend) |
+
+> **Nota de autenticación (cambio en H9.1)**: se usa **identificador + PIN de 6 dígitos** (sin correo):
+> staff → nombre de usuario; dueño de mascota → su teléfono. PIN hasheado con BCrypt + bloqueo tras 5 intentos fallidos.
 
 ## FUTURO / Bajo demanda
 | ID | Historia | Estado |

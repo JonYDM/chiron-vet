@@ -39,11 +39,26 @@ public sealed class GenerarRecordatorios
     }
 
     /// <summary>
-    /// Detecta los recordatorios de la veterinaria para los próximos <paramref name="diasAnticipacion"/> días.
-    /// Solo incluye clientes que dieron consentimiento de WhatsApp.
+    /// Recordatorios para ENVÍO de notificaciones: solo clientes con consentimiento.
     /// </summary>
-    public async Task<IReadOnlyList<RecordatorioDetectado>> DetectarAsync(
+    public Task<IReadOnlyList<RecordatorioDetectado>> DetectarParaEnvioAsync(
         Guid veterinariaId, int diasAnticipacion = 7, CancellationToken cancellationToken = default)
+        => DetectarInternoAsync(veterinariaId, diasAnticipacion, respetarConsentimiento: true, cancellationToken);
+
+    /// <summary>
+    /// Recordatorios para el PORTAL del dueño: incluye todos (el dueño ve los suyos in-app,
+    /// el consentimiento aplica solo al ENVÍO de notificaciones, no a que él los consulte).
+    /// El endpoint del portal ya restringe por rol y por el clienteId del token.
+    /// </summary>
+    public Task<IReadOnlyList<RecordatorioDetectado>> DetectarParaPortalAsync(
+        Guid veterinariaId, int diasAnticipacion = 30, CancellationToken cancellationToken = default)
+        => DetectarInternoAsync(veterinariaId, diasAnticipacion, respetarConsentimiento: false, cancellationToken);
+
+    // Lógica común. Es PRIVADA: el flag no se expone al exterior, así no puede
+    // manipularse desde la API/navegador. Solo los dos métodos públicos lo fijan.
+    private async Task<IReadOnlyList<RecordatorioDetectado>> DetectarInternoAsync(
+        Guid veterinariaId, int diasAnticipacion,
+        bool respetarConsentimiento, CancellationToken cancellationToken)
     {
         DateOnly hoy = DateOnly.FromDateTime(DateTime.UtcNow);
         DateOnly hasta = hoy.AddDays(diasAnticipacion);
@@ -64,7 +79,8 @@ public sealed class GenerarRecordatorios
             if (mascota is null) continue;
 
             Cliente? cliente = await ObtenerClienteAsync(cacheClientes, mascota.ClienteId, cancellationToken);
-            if (cliente is null || !cliente.AceptaWhatsApp) continue;
+            if (cliente is null) continue;
+            if (respetarConsentimiento && !cliente.AceptaWhatsApp) continue;
 
             recordatorios.Add(new RecordatorioDetectado(
                 TipoRecordatorio.ProximaAplicacion, cliente.Id, cliente.Nombre, cliente.Telefono,
@@ -82,7 +98,8 @@ public sealed class GenerarRecordatorios
             if (mascota is null) continue;
 
             Cliente? cliente = await ObtenerClienteAsync(cacheClientes, mascota.ClienteId, cancellationToken);
-            if (cliente is null || !cliente.AceptaWhatsApp) continue;
+            if (cliente is null) continue;
+            if (respetarConsentimiento && !cliente.AceptaWhatsApp) continue;
 
             recordatorios.Add(new RecordatorioDetectado(
                 TipoRecordatorio.Cita, cliente.Id, cliente.Nombre, cliente.Telefono,

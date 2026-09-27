@@ -4,6 +4,32 @@
 
 ---
 
+## Sesión 2 (cont.) — 2026-09-27 — ÉPICA 9 (Seguridad) + ÉPICA 10 (Dueño de mascota)
+
+### Autenticación con identificador + PIN (cambio en H9.1)
+- Sin correo: staff usa **nombre de usuario**, dueños usan su **teléfono**. PIN de 6 dígitos.
+- `Usuario` rediseñado: NombreUsuario, HashPin (BCrypt), ClienteId opcional, bloqueo por
+  5 intentos fallidos. Fábricas CrearStaff / CrearDueno.
+- Login (identificador+PIN) registra intentos y valida veterinaria activa.
+- JWT incluye claim clienteId para dueños. Repos buscan por NombreUsuario.
+
+### ÉPICA 9 (Seguridad) COMPLETA — H9.1..H9.4
+- JWT firmado + BCrypt. API con autenticación/autorización; cada endpoint con RequireRole.
+- SuperAdmin: alta/activar/desactivar/listar veterinarias (control de suscripción).
+- Verificado HTTP: 401 sin token, login OK, PIN malo rechazado, roles correctos.
+
+### ÉPICA 10 (Dueño de mascota) — H10.1, H10.2
+- Rol DuenoMascota. Portal: /api/portal/mis-mascotas, /mascotas/{id}/expediente
+  (valida propiedad), /mis-recordatorios. El clienteId viene del TOKEN (no de URL).
+- Refactor seguro de GenerarRecordatorios: sin flag público → DetectarParaEnvioAsync
+  (opt-in) y DetectarParaPortalAsync (in-app).
+- Verificado HTTP: login dueño rol=4, ve solo su mascota, ve su recordatorio, 403 a staff.
+- H10.3 (push web): pendiente, depende del frontend.
+- Migración EF: UsuarioConPinYBloqueo.
+
+---
+
+
 ## Sesión 2 (cont.) — 2026-09-26 — DECISIONES ESTRATÉGICAS
 
 ### Despliegue en Railway ✅
