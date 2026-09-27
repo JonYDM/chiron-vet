@@ -6,6 +6,34 @@
 
 ## Sesión 2 (cont.) — 2026-09-26
 
+### [H8.1] API REST (ASP.NET Core) — ✅ COMPLETADA
+Rama: `feature/H8-api-rest` (parte del punto de venta).
+
+- Nuevo proyecto **`src/Chiron.Api`** (ASP.NET Core Web API, net8.0), agregado a la solución con referencias a Application e Infrastructure.
+- **Swagger** (Swashbuckle 6.6.2) habilitado; la raíz "/" redirige a /swagger.
+- Reutiliza `AddApplication()` + `AddInfrastructure()` (mismas capas que la consola) vía DI.
+- Endpoints (minimal API) expuestos:
+  - POST /api/veterinarias
+  - POST /api/registro-rapido
+  - GET  /api/veterinarias/{id}/clientes
+  - GET  /api/clientes/{id}/mascotas
+  - POST /api/expediente · GET /api/mascotas/{id}/expediente
+  - POST /api/citas · GET /api/veterinarias/{id}/citas/proximas
+  - POST /api/productos · GET /api/veterinarias/{id}/catalogo · POST /api/ventas
+  - POST /api/veterinarias/{id}/recordatorios/enviar
+- Helper ToHttp<T> mapea Result<T> a 200/400.
+- **Verificación por HTTP real** (puerto forzado con --urls): creó veterinaria, registro rápido (cliente+mascota) y listó clientes en JSON. Nota: `dotnet run` respeta launchSettings.json (puerto 5265) salvo que se pase --urls.
+
+### Estado global
+Épicas: 1, 1.5, 2, 3, 4, 5, 6 completas + H8.1 (API). Falta: 7 (PostgreSQL/Docker/Railway), resto de 8 (frontend, WhatsApp real).
+
+### Siguiente paso
+- Épica 7 (PostgreSQL + Docker + Railway) para persistencia real y despliegue, o frontend (H8.2).
+
+---
+
+## Sesión 2 (cont.) — 2026-09-26
+
 ### 🎉 ÉPICA 6 (Punto de venta) COMPLETADA — H6.1, H6.2
 Rama: `feature/H6-punto-venta`.
 
