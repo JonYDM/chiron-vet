@@ -1,0 +1,9 @@
+# Excluir de la imagen Docker (acelera el build y reduce tamaño).
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+.git/
+.gitignore
+docs/
+*.md

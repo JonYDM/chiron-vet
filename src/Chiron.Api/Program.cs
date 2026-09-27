@@ -9,6 +9,7 @@ using Chiron.Application.Recordatorios;
 using Chiron.Domain.Common;
 using Chiron.Domain.Veterinarias;
 using Chiron.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Chiron.Api — API REST que expone los casos de uso (Épica 8, H8.1).
@@ -17,15 +18,55 @@ using Chiron.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Railway (y otros PaaS) inyectan el puerto por la variable de entorno PORT.
+// Si existe, la API escucha en ese puerto; si no, usa el valor por defecto.
+string? puerto = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(puerto))
+    builder.WebHost.UseUrls($"http://+:{puerto}");
+
 // Registro de las capas de Chiron (mismos métodos que usa la consola).
 builder.Services.AddApplication();
-builder.Services.AddInfrastructure();
+
+// Persistencia: si hay cadena de conexión "Chiron", usa PostgreSQL (producción);
+// si no, usa repositorios en memoria (útil para demo/local sin base de datos).
+string? cadenaPostgres = builder.Configuration.GetConnectionString("Chiron");
+if (!string.IsNullOrWhiteSpace(cadenaPostgres))
+    builder.Services.AddInfrastructurePostgres(cadenaPostgres);
+else
+    builder.Services.AddInfrastructure();
 
 // Swagger para explorar y probar la API desde el navegador.
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+// Si estamos en modo PostgreSQL, aplicar migraciones pendientes al arrancar
+// (crea las tablas automáticamente en el primer despliegue en Railway).
+// Con reintentos, porque la base de datos puede tardar en estar lista.
+if (!string.IsNullOrWhiteSpace(cadenaPostgres))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<Chiron.Infrastructure.Persistencia.Ef.ChironDbContext>();
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+
+    const int maxIntentos = 10;
+    for (int intento = 1; intento <= maxIntentos; intento++)
+    {
+        try
+        {
+            db.Database.Migrate();
+            logger.LogInformation("Migraciones aplicadas correctamente.");
+            break;
+        }
+        catch (Exception ex) when (intento < maxIntentos)
+        {
+            logger.LogWarning("Base de datos no lista (intento {Intento}/{Max}): {Error}. Reintentando en 3s...",
+                intento, maxIntentos, ex.Message);
+            Thread.Sleep(3000);
+        }
+    }
+}
 
 // Swagger disponible siempre (útil para el demo).
 app.UseSwagger();

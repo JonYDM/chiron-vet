@@ -6,6 +6,32 @@
 
 ## Sesión 2 (cont.) — 2026-09-26
 
+### 🎉 ÉPICA 7 (Persistencia real + Docker) COMPLETADA — H7.1, H7.2
+Rama: `feature/H7-persistencia-postgres` (parte de la API).
+
+- **H7.1 — PostgreSQL con EF Core**:
+  - Paquete Npgsql.EntityFrameworkCore.PostgreSQL 8.0.10.
+  - `ChironDbContext` con mapeo de las 8 entidades (decimales con precisión monetaria; LineaVenta como owned type con backing field `_lineas`).
+  - `RepositorioEf<T>` genérico + implementaciones EF de los 6 repositorios específicos.
+  - DI: `AddInfrastructure()` (en memoria, por defecto) y `AddInfrastructurePostgres(cadena)` (EF Core). La API elige según la cadena de conexión "Chiron".
+  - Ajustes al dominio para EF: LineaVenta y Venta con setters/constructor privados sin parámetros.
+  - **Migración inicial generada** (valida que todo el modelo es mapeable). Se aplica automáticamente al arrancar en modo Postgres (db.Database.Migrate()).
+  - `.config/dotnet-tools.json` con dotnet-ef 8.0.10.
+- **H7.2 — Docker**:
+  - `Dockerfile` multi-stage (build SDK 8.0 → runtime aspnet 8.0, puerto 8080).
+  - `.dockerignore` y `docker-compose.yml` (API + PostgreSQL 16) para desarrollo local.
+
+### Verificación
+- `dotnet build` 0/0. Migración generada OK. API en modo memoria verificada por HTTP (crear veterinaria).
+- ⚠️ NO verificado contra PostgreSQL real (no hay BD en el entorno actual); se probará con docker-compose o al desplegar en Railway.
+
+### Estado global
+Épicas 1–7 completas + H8.1 (API). Falta: H8.2 (frontend), H8.3 (WhatsApp real), despliegue efectivo en Railway.
+
+---
+
+## Sesión 2 (cont.) — 2026-09-26
+
 ### [H8.1] API REST (ASP.NET Core) — ✅ COMPLETADA
 Rama: `feature/H8-api-rest` (parte del punto de venta).
 

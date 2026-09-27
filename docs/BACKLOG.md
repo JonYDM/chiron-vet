@@ -61,8 +61,8 @@ Núcleo que permite rentar el software a múltiples veterinarias con aislamiento
 ## ÉPICA 7 — Persistencia real
 | ID | Historia | Estado |
 |----|----------|--------|
-| H7.1 | Integrar base de datos PostgreSQL (EF Core) | ⬜ |
-| H7.2 | Dockerizar (Dockerfile multi-stage) y desplegar en Railway | ⬜ |
+| H7.1 | Integrar base de datos PostgreSQL (EF Core) | ✅ |
+| H7.2 | Dockerizar (Dockerfile) y preparar despliegue en Railway | ✅ (archivos listos; despliegue pendiente) |
 
 ## ÉPICA 8 — API y Frontend
 | ID | Historia | Estado |
