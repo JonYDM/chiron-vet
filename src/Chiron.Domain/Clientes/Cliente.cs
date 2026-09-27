@@ -30,13 +30,21 @@ public sealed class Cliente : EntidadBase
     /// <summary>Canal por el que el cliente conoció la veterinaria (métricas de marketing).</summary>
     public OrigenCliente Origen { get; private set; }
 
+    /// <summary>
+    /// Indica si el cliente dio su consentimiento (opt-in) para recibir mensajes por WhatsApp.
+    /// Requisito OBLIGATORIO de Meta: no se puede enviar recordatorios sin este consentimiento.
+    /// Por defecto es false hasta que el cliente lo autorice explícitamente.
+    /// </summary>
+    public bool AceptaWhatsApp { get; private set; }
+
     // Constructor privado: fuerza el uso de la fábrica Crear para garantizar validez.
-    private Cliente(Guid veterinariaId, string nombre, string telefono, OrigenCliente origen)
+    private Cliente(Guid veterinariaId, string nombre, string telefono, OrigenCliente origen, bool aceptaWhatsApp)
     {
         VeterinariaId = veterinariaId;
         Nombre = nombre;
         Telefono = telefono;
         Origen = origen;
+        AceptaWhatsApp = aceptaWhatsApp;
         FechaRegistro = DateTime.UtcNow;
     }
 
@@ -48,11 +56,13 @@ public sealed class Cliente : EntidadBase
     /// <param name="nombre">Nombre completo (obligatorio).</param>
     /// <param name="telefono">Teléfono (obligatorio, mínimo 10 dígitos).</param>
     /// <param name="origen">Canal de captación (opcional).</param>
+    /// <param name="aceptaWhatsApp">Consentimiento para recibir WhatsApp (opcional, por defecto false).</param>
     public static Result<Cliente> Crear(
         Guid veterinariaId,
         string nombre,
         string telefono,
-        OrigenCliente origen = OrigenCliente.NoEspecificado)
+        OrigenCliente origen = OrigenCliente.NoEspecificado,
+        bool aceptaWhatsApp = false)
     {
         if (veterinariaId == Guid.Empty)
             return Result<Cliente>.Falla("El cliente debe pertenecer a una veterinaria válida.");
@@ -71,9 +81,15 @@ public sealed class Cliente : EntidadBase
                 $"El teléfono debe tener al menos {LongitudMinimaTelefono} dígitos.");
 
         // Se recorta el nombre para evitar espacios sobrantes al inicio/fin.
-        var cliente = new Cliente(veterinariaId, nombre.Trim(), telefonoNormalizado, origen);
+        var cliente = new Cliente(veterinariaId, nombre.Trim(), telefonoNormalizado, origen, aceptaWhatsApp);
         return Result<Cliente>.Exito(cliente);
     }
+
+    /// <summary>Registra el consentimiento del cliente para recibir WhatsApp.</summary>
+    public void OtorgarConsentimientoWhatsApp() => AceptaWhatsApp = true;
+
+    /// <summary>Revoca el consentimiento del cliente para recibir WhatsApp.</summary>
+    public void RevocarConsentimientoWhatsApp() => AceptaWhatsApp = false;
 
     /// <summary>
     /// Deja en el teléfono únicamente los dígitos.

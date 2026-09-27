@@ -6,6 +6,29 @@
 
 ## Sesión 2 (cont.) — 2026-09-26
 
+### 🎉 ÉPICA 5 (Recordatorios — DIFERENCIADOR) COMPLETADA — H5.1, H5.2
+Rama: `feature/H5-recordatorios`. Incluye doc `INTEGRACION-WHATSAPP.md`.
+
+- **Domain**: `Cliente` ampliado con `AceptaWhatsApp` (opt-in, requisito de Meta) + métodos Otorgar/RevocarConsentimientoWhatsApp. Crear() acepta parámetro aceptaWhatsApp (default false).
+- **Application** (namespace Recordatorios):
+  - `IServicioMensajeria` + `MensajeRecordatorio` — abstracción del canal (independiente de Meta).
+  - `RecordatorioDetectado` + `TipoRecordatorio` (ProximaAplicacion, Cita).
+  - `GenerarRecordatorios` (H5.1): combina próximas aplicaciones del expediente + citas próximas, filtra por opt-in, con caché de clientes/mascotas.
+  - `EnviarRecordatorios` (H5.2): formatea textos (futuras plantillas de utilidad) y envía vía IServicioMensajeria.
+- **Infrastructure**: `MensajeriaConsola` (implementación de prueba que loguea; se reemplazará por WhatsApp Cloud API). Paquete Microsoft.Extensions.Logging.Abstractions 8.0.2 agregado.
+- Verificación (`dotnet run`): Ana (opt-in) recibe 2 recordatorios (vacuna + cita); Luis/Michi (sin opt-in) NO recibe. Detectados 2, enviados 2.
+
+### Estado global
+Épicas completadas: 1, 1.5, 2, 3, 4, 5. Falta: 6 (punto de venta), 7 (PostgreSQL/Docker), 8 (API/frontend/WhatsApp real).
+
+### Siguiente paso
+- Épica 6 (Punto de venta) o Épica 8 (API REST).
+- WhatsApp real: implementar IServicioMensajeria contra Cloud API (o vía contacto del usuario).
+
+---
+
+## Sesión 2 (cont.) — 2026-09-26
+
 ### 🎉 ÉPICA 4 (Citas) COMPLETADA — H4.1, H4.2
 Rama: `feature/H4-citas`.
 

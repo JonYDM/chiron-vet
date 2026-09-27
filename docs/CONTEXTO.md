@@ -29,6 +29,8 @@ No inventamos una categoría nueva; mejoramos lo existente:
 ### Diferenciador clave
 **Recordatorios automáticos por WhatsApp** de citas, vacunas y desparasitaciones. Esto hace que el cliente regrese → la veterinaria gana más → justifica pagar la renta mensual.
 
+> Requisitos oficiales de Meta para esta integración documentados en `INTEGRACION-WHATSAPP.md` (incluye el cambio de precios del 1-oct-2026 que afecta el costo de recordatorios).
+
 ---
 
 ## Decisiones técnicas tomadas
