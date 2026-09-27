@@ -4,6 +4,28 @@
 
 ---
 
+## Sesión 2 (cont.) — 2026-09-26
+
+### [H1.2] Configurar inyección de dependencias — ✅ COMPLETADA
+- Paquetes agregados (versiones fijadas a línea 8.x LTS):
+  - `Microsoft.Extensions.DependencyInjection.Abstractions` 8.0.2 en Application e Infrastructure.
+  - `Microsoft.Extensions.Hosting` 8.0.1 en ConsoleApp.
+- Patrón de registro por capa (métodos de extensión):
+  - `Chiron.Application/DependencyInjection.cs` → `AddApplication()`.
+  - `Chiron.Infrastructure/DependencyInjection.cs` → `AddInfrastructure()`.
+- `Program.cs` reescrito usando **Generic Host** (`Host.CreateDefaultBuilder`), Composition Root único.
+- Verificación: `dotnet build` correcto (0/0); `dotnet run` arranca, resuelve `ILogger` desde el contenedor e imprime mensajes.
+
+### Nota de decisión — Frontend (pregunta del usuario)
+- El backend expondrá una **API REST** (H8.1), por lo que el frontend es intercambiable.
+- Opciones registradas en backlog (H8.2): **React/Vue** (aprovecha que el usuario sabe Node) o **Blazor** (todo en C#). App móvil futura con **.NET MAUI**.
+- Recomendación: web primero (React o Blazor), móvil después.
+
+### Siguiente paso
+- **H1.3** — contrato de repositorio genérico + repositorio base en memoria.
+
+---
+
 ## Sesión 2 — 2026-09-26
 
 ### Historias trabajadas
