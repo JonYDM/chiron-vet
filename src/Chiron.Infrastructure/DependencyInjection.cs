@@ -9,10 +9,12 @@ using Chiron.Application.Seguridad;
 using Chiron.Domain.Clientes;
 using Chiron.Domain.Mascotas;
 using Chiron.Domain.Usuarios;
+using Chiron.Infrastructure.Almacenamiento;
 using Chiron.Infrastructure.Mensajeria;
 using Chiron.Infrastructure.Persistencia;
 using Chiron.Infrastructure.Persistencia.Ef;
 using Chiron.Infrastructure.Seguridad;
+using Amazon.S3;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -40,6 +42,9 @@ public static class DependencyInjection
         services.AddSingleton<MascotaRepositorioEnMemoria>();
         services.AddSingleton<IMascotaRepository>(sp => sp.GetRequiredService<MascotaRepositorioEnMemoria>());
         services.AddSingleton<IRepository<Mascota>>(sp => sp.GetRequiredService<MascotaRepositorioEnMemoria>());
+
+        services.AddSingleton<FotoMascotaRepositorioEnMemoria>();
+        services.AddSingleton<IFotoMascotaRepository>(sp => sp.GetRequiredService<FotoMascotaRepositorioEnMemoria>());
 
         services.AddSingleton<RegistroMedicoRepositorioEnMemoria>();
         services.AddSingleton<IRegistroMedicoRepository>(sp => sp.GetRequiredService<RegistroMedicoRepositorioEnMemoria>());
@@ -72,6 +77,7 @@ public static class DependencyInjection
 
         services.AddScoped<IClienteRepository, ClienteRepositorioEf>();
         services.AddScoped<IMascotaRepository, MascotaRepositorioEf>();
+        services.AddScoped<IFotoMascotaRepository, FotoMascotaRepositorioEf>();
         services.AddScoped<IRegistroMedicoRepository, RegistroMedicoRepositorioEf>();
         services.AddScoped<ICitaRepository, CitaRepositorioEf>();
         services.AddScoped<IProductoRepository, ProductoRepositorioEf>();
@@ -99,5 +105,33 @@ public static class DependencyInjection
         };
         services.AddSingleton(opciones);
         services.AddSingleton<IGeneradorToken, GeneradorTokenJwt>();
+    }
+
+    /// <summary>
+    /// Registra el almacenamiento de fotos. Si R2 está configurado (variables de
+    /// entorno presentes), usa Cloudflare R2; si no, usa un almacenamiento nulo
+    /// (para desarrollo/consola sin credenciales). Llamar DESPUÉS de AddInfrastructure*.
+    /// </summary>
+    public static IServiceCollection AddAlmacenamiento(this IServiceCollection services, R2Opciones r2)
+    {
+        if (r2.EstaConfigurado)
+        {
+            services.AddSingleton(r2);
+            services.AddSingleton<IAmazonS3>(_ =>
+            {
+                var config = new AmazonS3Config
+                {
+                    ServiceURL = r2.Endpoint,
+                    ForcePathStyle = true // R2 usa path-style
+                };
+                return new AmazonS3Client(r2.AccessKeyId, r2.SecretAccessKey, config);
+            });
+            services.AddScoped<IAlmacenamientoArchivos, AlmacenamientoR2>();
+        }
+        else
+        {
+            services.AddSingleton<IAlmacenamientoArchivos, AlmacenamientoNulo>();
+        }
+        return services;
     }
 }

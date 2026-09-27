@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddTransient<AgregarMascota>();
         services.AddTransient<EditarMascota>();
         services.AddTransient<CambiarEstadoMascota>();
+        services.AddTransient<GestionFotoMascota>();
 
         services.AddTransient<AgregarRegistroMedico>();
         services.AddTransient<VerExpedienteMascota>();
