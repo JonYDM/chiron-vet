@@ -43,14 +43,15 @@ public sealed class ListarCatalogo
 
     public ListarCatalogo(IProductoRepository productos) => _productos = productos;
 
-    public Task<IReadOnlyList<Producto>> EjecutarAsync(
-        Guid veterinariaId, CancellationToken cancellationToken = default)
-        => FiltrarActivosAsync(veterinariaId, cancellationToken);
-
-    private async Task<IReadOnlyList<Producto>> FiltrarActivosAsync(
-        Guid veterinariaId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<Producto>> EjecutarAsync(
+        Guid veterinariaId,
+        Chiron.Application.Common.FiltroEstado estado = Chiron.Application.Common.FiltroEstado.Activos,
+        CancellationToken cancellationToken = default)
     {
         IReadOnlyList<Producto> todos = await _productos.ListarPorVeterinariaAsync(veterinariaId, cancellationToken);
-        return todos.Where(p => p.Activo).ToList();
+        return Chiron.Application.Common.FiltroEstadoExtensiones
+            .AplicarFiltro(todos, estado, p => p.Activo)
+            .OrderBy(p => p.Nombre)
+            .ToList();
     }
 }

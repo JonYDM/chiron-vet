@@ -31,10 +31,15 @@ public sealed class ListarUsuariosDeVeterinaria
     public ListarUsuariosDeVeterinaria(IUsuarioRepository usuarios) => _usuarios = usuarios;
 
     public async Task<IReadOnlyList<UsuarioDto>> EjecutarAsync(
-        Guid veterinariaId, CancellationToken cancellationToken = default)
+        Guid veterinariaId,
+        Chiron.Application.Common.FiltroEstado estado = Chiron.Application.Common.FiltroEstado.Activos,
+        CancellationToken cancellationToken = default)
     {
         IReadOnlyList<Usuario> usuarios = await _usuarios.ListarPorVeterinariaAsync(veterinariaId, cancellationToken);
-        return usuarios.Select(UsuarioDto.Desde).ToList();
+        return Chiron.Application.Common.FiltroEstadoExtensiones
+            .AplicarFiltro(usuarios, estado, u => u.Activo)
+            .Select(UsuarioDto.Desde)
+            .ToList();
     }
 }
 
@@ -48,9 +53,14 @@ public sealed class ListarAdministradores
 
     public ListarAdministradores(IUsuarioRepository usuarios) => _usuarios = usuarios;
 
-    public async Task<IReadOnlyList<UsuarioDto>> EjecutarAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<UsuarioDto>> EjecutarAsync(
+        Chiron.Application.Common.FiltroEstado estado = Chiron.Application.Common.FiltroEstado.Activos,
+        CancellationToken cancellationToken = default)
     {
         IReadOnlyList<Usuario> admins = await _usuarios.ListarPorRolAsync(RolUsuario.Administrador, cancellationToken);
-        return admins.Select(UsuarioDto.Desde).ToList();
+        return Chiron.Application.Common.FiltroEstadoExtensiones
+            .AplicarFiltro(admins, estado, u => u.Activo)
+            .Select(UsuarioDto.Desde)
+            .ToList();
     }
 }
