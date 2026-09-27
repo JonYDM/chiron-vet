@@ -1,4 +1,5 @@
 using Chiron.Application.Clientes;
+using Chiron.Application.Expedientes;
 using Chiron.Application.Mascotas;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -19,6 +20,9 @@ public static class DependencyInjection
         services.AddTransient<RegistrarClienteConMascota>();
         services.AddTransient<BuscarClientes>();
         services.AddTransient<ListarMascotasDeCliente>();
+
+        services.AddTransient<AgregarRegistroMedico>();
+        services.AddTransient<VerExpedienteMascota>();
 
         return services;
     }

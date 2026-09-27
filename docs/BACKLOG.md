@@ -36,9 +36,9 @@ Núcleo que permite rentar el software a múltiples veterinarias con aislamiento
 ## ÉPICA 3 — Expediente médico
 | ID | Historia | Estado |
 |----|----------|--------|
-| H3.1 | Registrar consulta médica en el historial de una mascota | ⬜ |
-| H3.2 | Registrar vacunas/desparasitaciones con fecha de próxima aplicación | ⬜ |
-| H3.3 | Ver expediente completo de una mascota | ⬜ |
+| H3.1 | Registrar consulta médica en el historial de una mascota | ✅ |
+| H3.2 | Registrar vacunas/desparasitaciones con fecha de próxima aplicación | ✅ |
+| H3.3 | Ver expediente completo de una mascota | ✅ |
 
 ## ÉPICA 4 — Citas
 | ID | Historia | Estado |

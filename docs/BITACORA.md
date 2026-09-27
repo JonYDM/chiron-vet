@@ -6,6 +6,22 @@
 
 ## Sesión 2 (cont.) — 2026-09-26
 
+### 🎉 ÉPICA 3 (Expediente médico) COMPLETADA — H3.1, H3.2, H3.3
+Rama: `feature/H3-expediente-medico`.
+
+- **Domain**: `Expedientes/TipoRegistroMedico.cs` (Consulta, Vacuna, Desparasitacion, Cirugia, Otro) y `Expedientes/RegistroMedico.cs` (VeterinariaId, MascotaId, Tipo, Fecha, Descripcion, FechaProximaAplicacion). Método `TieneRecordatorioPendiente()`. Valida próxima aplicación > fecha atención.
+- **Application**: `IRegistroMedicoRepository` (ObtenerPorMascota, ObtenerProximasAplicaciones para recordatorios), casos de uso `AgregarRegistroMedico` (H3.1/H3.2) y `VerExpedienteMascota` (H3.3), comando `AgregarRegistroMedicoComando`.
+- **Infrastructure**: `RegistroMedicoRepositorioEnMemoria` (expediente ordenado desc por fecha; próximas aplicaciones filtradas por rango).
+- **DI**: casos de uso Transient; repo Singleton.
+- Verificación (`dotnet run`): consulta + vacuna (próx 2027-09-01) + desparasitación (próx 2026-12-01); rechazo de próxima anterior a la fecha; expediente con 3 registros.
+
+### Siguiente paso
+- Épica 4 (Citas).
+
+---
+
+## Sesión 2 (cont.) — 2026-09-26
+
 ### Casos de uso de Application (H2.2b + H2.3) — ✅ COMPLETADO
 Rama: `feature/H2.2b-casos-uso` (parte de la rama del núcleo multi-tenant).
 

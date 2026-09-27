@@ -1,9 +1,10 @@
 using Chiron.Application;
 using Chiron.Application.Clientes;
 using Chiron.Application.Common;
-using Chiron.Application.Mascotas;
+using Chiron.Application.Expedientes;
 using Chiron.Domain.Clientes;
 using Chiron.Domain.Common;
+using Chiron.Domain.Expedientes;
 using Chiron.Domain.Mascotas;
 using Chiron.Domain.Veterinarias;
 using Chiron.Infrastructure;
@@ -12,7 +13,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Chiron.ConsoleApp — Demostración de los casos de uso de la capa de Aplicación.
+// Chiron.ConsoleApp — Demostración: registro rápido + expediente médico.
 // ─────────────────────────────────────────────────────────────────────────────
 
 using IHost host = Host.CreateDefaultBuilder(args)
@@ -24,61 +25,54 @@ using IHost host = Host.CreateDefaultBuilder(args)
     .Build();
 
 ILogger<Program> logger = host.Services.GetRequiredService<ILogger<Program>>();
-logger.LogInformation("🐾 Chiron — Demostración de casos de uso");
+logger.LogInformation("🐾 Chiron — Expediente médico");
 
-// Alta de una veterinaria (tenant) para el escenario.
+// Preparar escenario: veterinaria + registro rápido de María con Firulais.
 IRepository<Veterinaria> veterinarias = host.Services.GetRequiredService<IRepository<Veterinaria>>();
 Veterinaria vet = Veterinaria.Crear("Veterinaria San Francisco", "7771112233").Valor!;
 await veterinarias.AgregarAsync(vet);
-logger.LogInformation("🏥 Veterinaria: {Nombre}", vet.Nombre);
 
-// ── Caso de uso 1: REGISTRO RÁPIDO (llega María con Firulais) ──
 var registroRapido = host.Services.GetRequiredService<RegistrarClienteConMascota>();
-var comando = new RegistrarClienteConMascotaComando(
-    VeterinariaId: vet.Id,
-    NombreCliente: "María González",
-    TelefonoCliente: "777-123-4567",
-    OrigenCliente: OrigenCliente.Recomendacion,
-    NombreMascota: "Firulais",
-    Especie: EspecieMascota.Perro,
-    Sexo: SexoMascota.Macho,
-    Raza: "Labrador",
-    FechaNacimiento: new DateOnly(2021, 5, 10));
+Result<RegistroRapidoResultado> alta = await registroRapido.EjecutarAsync(new RegistrarClienteConMascotaComando(
+    vet.Id, "María González", "7771234567", OrigenCliente.Recomendacion,
+    "Firulais", EspecieMascota.Perro, SexoMascota.Macho, "Labrador", new DateOnly(2021, 5, 10)));
+Guid mascotaId = alta.Valor!.MascotaId;
+logger.LogInformation("🐕 Mascota Firulais lista (Id {Id})", mascotaId);
 
-Result<RegistroRapidoResultado> resultado = await registroRapido.EjecutarAsync(comando);
-if (resultado.EsExito)
-    logger.LogInformation("✅ Registro rápido OK → ClienteId={C} | MascotaId={M}",
-        resultado.Valor!.ClienteId, resultado.Valor.MascotaId);
-else
-    logger.LogWarning("⛔ Registro rápido falló: {Error}", resultado.Error);
+var agregarRegistro = host.Services.GetRequiredService<AgregarRegistroMedico>();
 
-// Registro rápido de un segundo cliente para probar la búsqueda.
-await registroRapido.EjecutarAsync(new RegistrarClienteConMascotaComando(
-    vet.Id, "María Fernanda Ruiz", "7779998877", OrigenCliente.Google,
-    "Michi", EspecieMascota.Gato));
+// ── H3.1: registrar una consulta ──
+Result<Guid> consulta = await agregarRegistro.EjecutarAsync(new AgregarRegistroMedicoComando(
+    vet.Id, mascotaId, TipoRegistroMedico.Consulta, new DateOnly(2026, 9, 1),
+    "Revisión general. Peso 28 kg, saludable."));
+logger.LogInformation(consulta.EsExito ? "✅ Consulta registrada" : $"⛔ {consulta.Error}");
 
-// ── Caso de uso 2: BUSCAR CLIENTES por nombre ──
-var buscarClientes = host.Services.GetRequiredService<BuscarClientes>();
-IReadOnlyList<Cliente> encontrados = await buscarClientes.EjecutarAsync(vet.Id, "maría");
-logger.LogInformation("🔎 Clientes que contienen 'maría': {Total}", encontrados.Count);
-foreach (Cliente c in encontrados)
-    logger.LogInformation("   • {Nombre} ({Tel})", c.Nombre, c.Telefono);
+// ── H3.2: registrar una vacuna CON próxima aplicación (base de recordatorio) ──
+Result<Guid> vacuna = await agregarRegistro.EjecutarAsync(new AgregarRegistroMedicoComando(
+    vet.Id, mascotaId, TipoRegistroMedico.Vacuna, new DateOnly(2026, 9, 1),
+    "Vacuna antirrábica anual.", FechaProximaAplicacion: new DateOnly(2027, 9, 1)));
+logger.LogInformation(vacuna.EsExito ? "✅ Vacuna registrada (próxima: 2027-09-01)" : $"⛔ {vacuna.Error}");
 
-// ── Caso de uso 3: LISTAR MASCOTAS de un cliente ──
-var listarMascotas = host.Services.GetRequiredService<ListarMascotasDeCliente>();
-Guid clienteId = resultado.Valor!.ClienteId;
-IReadOnlyList<Mascota> mascotasCliente = await listarMascotas.EjecutarAsync(clienteId);
-logger.LogInformation("🐕 Mascotas de María González: {Total}", mascotasCliente.Count);
-foreach (Mascota m in mascotasCliente)
-    logger.LogInformation("   • {Nombre} — {Especie} {Raza} (edad {Edad})",
-        m.Nombre, m.Especie, m.Raza, m.EdadEnAnios());
+// ── H3.2: desparasitación con próxima aplicación ──
+await agregarRegistro.EjecutarAsync(new AgregarRegistroMedicoComando(
+    vet.Id, mascotaId, TipoRegistroMedico.Desparasitacion, new DateOnly(2026, 9, 1),
+    "Desparasitación interna.", FechaProximaAplicacion: new DateOnly(2026, 12, 1)));
 
-// ── Validación: registro rápido en veterinaria inexistente ──
-Result<RegistroRapidoResultado> invalido = await registroRapido.EjecutarAsync(
-    new RegistrarClienteConMascotaComando(
-        Guid.NewGuid(), "Cliente X", "7770000000", OrigenCliente.NoEspecificado,
-        "Rex", EspecieMascota.Perro));
+// ── Validación: próxima aplicación anterior a la fecha (debe fallar) ──
+Result<Guid> invalido = await agregarRegistro.EjecutarAsync(new AgregarRegistroMedicoComando(
+    vet.Id, mascotaId, TipoRegistroMedico.Vacuna, new DateOnly(2026, 9, 1),
+    "Fecha inválida.", FechaProximaAplicacion: new DateOnly(2026, 8, 1)));
 if (!invalido.EsExito)
     logger.LogWarning("⛔ Rechazado (esperado): {Error}", invalido.Error);
+
+// ── H3.3: ver el expediente completo (más reciente primero) ──
+var verExpediente = host.Services.GetRequiredService<VerExpedienteMascota>();
+IReadOnlyList<RegistroMedico> expediente = await verExpediente.EjecutarAsync(mascotaId);
+logger.LogInformation("📋 Expediente de Firulais ({Total} registros):", expediente.Count);
+foreach (RegistroMedico r in expediente)
+{
+    string proxima = r.FechaProximaAplicacion is { } p ? $" | próxima: {p}" : "";
+    logger.LogInformation("   • [{Fecha}] {Tipo}: {Desc}{Proxima}", r.Fecha, r.Tipo, r.Descripcion, proxima);
+}
 
 await host.StopAsync();
