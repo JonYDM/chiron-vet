@@ -231,6 +231,17 @@ app.MapGet("/api/admin/veterinarias", async (IRepository<Veterinaria> repo) =>
     Results.Ok(await repo.ObtenerTodosAsync()))
 .WithName("ListarVeterinarias").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
 
+// Configura si el Administrador de una veterinaria puede operar (true) o es supervisor puro (false).
+app.MapPost("/api/admin/veterinarias/{id:guid}/admin-operativo", async (Guid id, AdminOperativoDto dto, IRepository<Veterinaria> repo) =>
+{
+    Veterinaria? vet = await repo.ObtenerPorIdAsync(id);
+    if (vet is null) return Results.NotFound();
+    vet.EstablecerAdminOperativo(dto.Operativo);
+    await repo.ActualizarAsync(vet);
+    return Results.Ok(new { vet.Id, vet.AdminOperativo });
+})
+.WithName("AdminOperativo").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
+
 // SuperAdmin crea el usuario ADMINISTRADOR de una veterinaria.
 app.MapPost("/api/admin/usuarios-admin", async (CrearUsuarioStaffComando cmd, CrearUsuarioStaff uc) =>
 {
@@ -268,7 +279,7 @@ app.MapPost("/api/usuarios/dueno", async (CrearDuenoDto dto, ClaimsPrincipal use
     var comando = new CrearUsuarioDuenoComando(veterinariaId, dto.ClienteId, dto.Pin);
     return ToHttp(await uc.EjecutarAsync(comando));
 })
-.WithName("CrearDueno").WithTags("Usuarios").RequireAuthorization(p => p.RequireRole(Administrador, Recepcionista));
+.WithName("CrearDueno").WithTags("Usuarios").RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
 // Resetear el PIN de un usuario (recuperación de acceso).
 // - Administrador: resetea a su staff (Veterinario/Recepcionista) y dueños de SU veterinaria.
@@ -311,7 +322,7 @@ app.MapGet("/api/clientes/{clienteId:guid}/usuario", async (Guid clienteId, Obte
     return dto is null ? Results.NoContent() : Results.Ok(dto);
 })
 .WithName("UsuarioDeCliente").WithTags("Usuarios")
-.RequireAuthorization(p => p.RequireRole(Administrador, Recepcionista));
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
 // Cualquier usuario autenticado cambia su propio PIN (autoservicio). El id sale del token (sub).
 app.MapPost("/api/mi-pin", async (CambiarMiPinDto dto, ClaimsPrincipal user, CambiarMiPin uc) =>
@@ -430,7 +441,7 @@ app.MapPost("/api/expediente", async (AgregarRegistroMedicoComando cmd, AgregarR
 app.MapGet("/api/mascotas/{mascotaId:guid}/expediente", async (Guid mascotaId, VerExpedienteMascota uc) =>
     Results.Ok(await uc.EjecutarAsync(mascotaId)))
 .WithName("VerExpediente").WithTags("Expediente")
-.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario));
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
 // ═══════════════════ CITAS (staff) ═══════════════════
 app.MapPost("/api/citas", async (AgendarCitaComando cmd, AgendarCita uc) =>
@@ -609,3 +620,4 @@ record EditarMascotaDto(
 record CambiarMiPinDto(string PinActual, string NuevoPin);
 record GestionarUsuarioDto(string? NuevoNombre, AccionUsuario? Accion);
 record EstadoActivoDto(bool Activar);
+record AdminOperativoDto(bool Operativo);
