@@ -90,6 +90,18 @@ Ver detalle en `ROADMAP-SEGURIDAD-NOTIFICACIONES.md`.
 > **Nota de autenticación (cambio en H9.1)**: se usa **identificador + PIN de 6 dígitos** (sin correo):
 > staff → nombre de usuario; dueño de mascota → su teléfono. PIN hasheado con BCrypt + bloqueo tras 5 intentos fallidos.
 
+## ÉPICA 11 — Frontend (repo separado `chiron-web`) — PRÓXIMA
+Detalle completo en `FRONTEND.md`. React + Vite + PWA, desplegado en Vercel/Netlify.
+| ID | Historia | Estado |
+|----|----------|--------|
+| B-CORS | Backend: configurar CORS para el dominio del frontend | ⬜ (backend, previo al frontend) |
+| F1 | Setup + autenticación (login usuario/teléfono + PIN, sesión JWT) | ⬜ |
+| F2 | Layout y navegación por rol | ⬜ |
+| F3 | Módulos de staff (registro, clientes, expediente, citas, punto de venta) | ⬜ |
+| F4 | Portal del dueño de mascota (mis mascotas, expediente, recordatorios) | ⬜ |
+| F5 | Panel SuperAdmin (veterinarias, admins, suscripción) | ⬜ |
+| F6 | PWA + notificaciones push (implementa H10.3) | ⬜ |
+
 ## FUTURO / Bajo demanda
 | ID | Historia | Estado |
 |----|----------|--------|

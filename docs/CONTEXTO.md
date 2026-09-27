@@ -97,14 +97,19 @@ Ver detalles en `METODOLOGIA.md`.
 
 ## Estado actual
 
-- **Fase**: Sprint 1 — Fundación técnica.
-- **Siguiente historia**: H1.1 — Inicializar solución .NET con Clean Architecture.
+- **Fase**: Backend COMPLETO y desplegado en producción (Railway + PostgreSQL). Siguiente: **frontend**.
+- **Backend en producción**: https://chiron-vet-production.up.railway.app
+- **Épicas completadas**: 1 (fundación), 1.5 (multi-tenant), 2 (clientes/mascotas), 3 (expediente), 4 (citas), 5 (recordatorios), 6 (punto de venta), 7 (PostgreSQL/Docker), 8.1 (API REST), 9 (seguridad: JWT/roles/SuperAdmin), 9.5 (gestión de usuarios), 10.1-10.2 (rol dueño + recordatorios in-app).
+- **Siguiente**: Frontend en repo separado `chiron-web` (React + Vite + PWA). Ver `FRONTEND.md`.
+- **Pendientes backend**: CORS para el frontend, H10.3 (push web, requiere frontend), issue menor de Swagger UI, DataProtection persistente (mejora).
 - Ver progreso detallado en `BACKLOG.md` y `BITACORA.md`.
 
 ---
 
 ## Datos del contexto de negocio
 
-- El usuario (JonYDM) es de **Temixco, Morelos**.
-- Ya validó interés con **al menos un dueño de veterinaria** que mostró interés.
-- Observación clave del mercado LATAM: **los clientes entienden y compran cuando VEN el sistema funcionando**, no con promesas. → Prioridad en tener demos funcionales pronto.
+- El usuario (JonYDM / Jonathan Ocampo) es de **Temixco, Morelos**.
+- Ya validó interés con **al menos un dueño de veterinaria**.
+- Observación clave del mercado LATAM: **los clientes compran cuando VEN el sistema funcionando** → prioridad en demos funcionales.
+- **Precio objetivo**: ~$199-349 MXN/mes por veterinaria (rentable desde el primer cliente; infraestructura ~$100 MXN/mes para todas juntas).
+- **Autenticación**: usuario/teléfono + PIN de 6 dígitos (sin correo — decisión por fricción en LATAM).
