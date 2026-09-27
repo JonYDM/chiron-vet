@@ -35,6 +35,12 @@ public sealed class Venta : EntidadBase
         Total = lineas.Sum(l => l.Subtotal);
     }
 
+    // Constructor privado sin parámetros para EF Core (materialización desde la BD).
+    private Venta()
+    {
+        _lineas = new List<LineaVenta>();
+    }
+
     /// <summary>
     /// Crea una Venta validando que tenga al menos una línea.
     /// El descuento de stock se coordina en el caso de uso (capa de aplicación).

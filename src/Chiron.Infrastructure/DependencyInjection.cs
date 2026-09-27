@@ -9,27 +9,27 @@ using Chiron.Domain.Clientes;
 using Chiron.Domain.Mascotas;
 using Chiron.Infrastructure.Mensajeria;
 using Chiron.Infrastructure.Persistencia;
+using Chiron.Infrastructure.Persistencia.Ef;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Chiron.Infrastructure;
 
 /// <summary>
-/// Punto único de registro de dependencias de la capa de Infraestructura.
-/// Registra las implementaciones concretas que satisfacen los contratos de Application.
+/// Registro de dependencias de la capa de Infraestructura.
+/// Dos modos de persistencia intercambiables (ambos cumplen los mismos contratos):
+///  - En memoria (AddInfrastructure): para consola/demo, sin base de datos.
+///  - PostgreSQL con EF Core (AddInfrastructurePostgres): para producción.
 /// </summary>
 public static class DependencyInjection
 {
+    /// <summary>Persistencia EN MEMORIA (por defecto para consola/demo).</summary>
     public static IServiceCollection AddInfrastructure(this IServiceCollection services)
     {
-        // Repositorio genérico en memoria por defecto (para entidades sin repositorio específico,
-        // como Veterinaria y Usuario). Singleton para que los datos vivan toda la ejecución.
+        // Repositorio genérico en memoria (Veterinaria, Usuario, etc.).
         services.AddSingleton(typeof(IRepository<>), typeof(RepositorioEnMemoria<>));
 
-        // ── Repositorios específicos ──
-        // Se registran como Singleton (una sola instancia con sus datos).
-        // Además, IRepository<Cliente> se redirige a ESA MISMA instancia de
-        // IClienteRepository, para que los datos sean consistentes sin importar
-        // por cuál contrato se pida. Igual para Mascota.
+        // Repositorios específicos como Singleton; IRepository<T> redirige a la misma instancia.
         services.AddSingleton<ClienteRepositorioEnMemoria>();
         services.AddSingleton<IClienteRepository>(sp => sp.GetRequiredService<ClienteRepositorioEnMemoria>());
         services.AddSingleton<IRepository<Cliente>>(sp => sp.GetRequiredService<ClienteRepositorioEnMemoria>());
@@ -50,10 +50,32 @@ public static class DependencyInjection
         services.AddSingleton<VentaRepositorioEnMemoria>();
         services.AddSingleton<IVentaRepository>(sp => sp.GetRequiredService<VentaRepositorioEnMemoria>());
 
-        // Servicio de mensajería: implementación de PRUEBA (log). Se sustituirá por la
-        // implementación real de WhatsApp Cloud API sin cambiar la lógica de negocio.
-        services.AddSingleton<IServicioMensajeria, MensajeriaConsola>();
-
+        AddMensajeria(services);
         return services;
     }
+
+    /// <summary>Persistencia con PostgreSQL vía EF Core (producción).</summary>
+    public static IServiceCollection AddInfrastructurePostgres(this IServiceCollection services, string connectionString)
+    {
+        services.AddDbContext<ChironDbContext>(options => options.UseNpgsql(connectionString));
+
+        // Repositorio genérico EF para entidades sin repositorio específico.
+        services.AddScoped(typeof(IRepository<>), typeof(RepositorioEf<>));
+
+        // Repositorios específicos EF.
+        services.AddScoped<IClienteRepository, ClienteRepositorioEf>();
+        services.AddScoped<IMascotaRepository, MascotaRepositorioEf>();
+        services.AddScoped<IRegistroMedicoRepository, RegistroMedicoRepositorioEf>();
+        services.AddScoped<ICitaRepository, CitaRepositorioEf>();
+        services.AddScoped<IProductoRepository, ProductoRepositorioEf>();
+        services.AddScoped<IVentaRepository, VentaRepositorioEf>();
+
+        AddMensajeria(services);
+        return services;
+    }
+
+    // Servicio de mensajería: implementación de PRUEBA (log), común a ambos modos.
+    // Se sustituirá por WhatsApp Cloud API sin cambiar la lógica de negocio.
+    private static void AddMensajeria(IServiceCollection services)
+        => services.AddSingleton<IServicioMensajeria, MensajeriaConsola>();
 }
