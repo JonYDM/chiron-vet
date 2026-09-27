@@ -70,7 +70,12 @@ if (!string.IsNullOrWhiteSpace(cadenaPostgres))
 
 // Swagger disponible siempre (útil para el demo).
 app.UseSwagger();
-app.UseSwaggerUI();
+app.UseSwaggerUI(c =>
+{
+    // Endpoint explícito del documento OpenAPI. Sin esto, la UI puede fallar en
+    // producción ("Unable to render this definition") al usar una ruta relativa.
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Chiron.Api v1");
+});
 
 // Redirige la raíz a Swagger para que al abrir el navegador se vea la API.
 app.MapGet("/", () => Results.Redirect("/swagger"));
