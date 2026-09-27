@@ -150,6 +150,15 @@ public sealed class Usuario : EntidadBase
             HashPin = nuevoHash;
     }
 
+    /// <summary>Edita el nombre para mostrar del usuario.</summary>
+    public Result<bool> EditarNombre(string nombre)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+            return Result<bool>.Falla("El nombre es obligatorio.");
+        Nombre = nombre.Trim();
+        return Result<bool>.Exito(true);
+    }
+
     /// <summary>Normaliza el identificador: minúsculas y sin espacios alrededor.</summary>
     public static string NormalizarIdentificador(string identificador)
         => identificador.Trim().ToLowerInvariant();

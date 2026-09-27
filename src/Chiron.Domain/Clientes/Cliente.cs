@@ -88,6 +88,28 @@ public sealed class Cliente : EntidadBase
     /// <summary>Registra el consentimiento del cliente para recibir WhatsApp.</summary>
     public void OtorgarConsentimientoWhatsApp() => AceptaWhatsApp = true;
 
+    /// <summary>
+    /// Actualiza los datos editables del cliente (nombre, teléfono, origen), aplicando
+    /// las mismas validaciones que la creación.
+    /// </summary>
+    public Result<bool> ActualizarDatos(string nombre, string telefono, OrigenCliente origen)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+            return Result<bool>.Falla("El nombre del cliente es obligatorio.");
+        if (string.IsNullOrWhiteSpace(telefono))
+            return Result<bool>.Falla("El teléfono del cliente es obligatorio.");
+
+        string telefonoNormalizado = NormalizarTelefono(telefono);
+        if (telefonoNormalizado.Length < LongitudMinimaTelefono)
+            return Result<bool>.Falla(
+                $"El teléfono debe tener al menos {LongitudMinimaTelefono} dígitos.");
+
+        Nombre = nombre.Trim();
+        Telefono = telefonoNormalizado;
+        Origen = origen;
+        return Result<bool>.Exito(true);
+    }
+
     /// <summary>Revoca el consentimiento del cliente para recibir WhatsApp.</summary>
     public void RevocarConsentimientoWhatsApp() => AceptaWhatsApp = false;
 

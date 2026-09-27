@@ -10,6 +10,9 @@ using Chiron.Application.PuntoVenta;
 using Chiron.Application.Recordatorios;
 using Chiron.Application.Seguridad;
 using Chiron.Domain.Common;
+using Chiron.Domain.Clientes;
+using Chiron.Domain.Mascotas;
+using Chiron.Domain.PuntoVenta;
 using Chiron.Domain.Usuarios;
 using Chiron.Domain.Veterinarias;
 using Chiron.Infrastructure;
@@ -310,6 +313,30 @@ app.MapGet("/api/clientes/{clienteId:guid}/usuario", async (Guid clienteId, Obte
 .WithName("UsuarioDeCliente").WithTags("Usuarios")
 .RequireAuthorization(p => p.RequireRole(Administrador, Recepcionista));
 
+// Cualquier usuario autenticado cambia su propio PIN (autoservicio). El id sale del token (sub).
+app.MapPost("/api/mi-pin", async (CambiarMiPinDto dto, ClaimsPrincipal user, CambiarMiPin uc) =>
+{
+    string? sub = user.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
+                  ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    if (!Guid.TryParse(sub, out Guid usuarioId))
+        return Results.BadRequest(new { error = "Token inválido." });
+    var comando = new CambiarMiPinComando(usuarioId, dto.PinActual, dto.NuevoPin);
+    return ToHttp(await uc.EjecutarAsync(comando));
+})
+.WithName("CambiarMiPin").WithTags("Usuarios").RequireAuthorization();
+
+// Editar nombre y/o activar-desactivar un usuario (Admin sobre su staff/dueños; SuperAdmin sobre admins).
+app.MapPost("/api/usuarios/{id:guid}/gestionar", async (Guid id, GestionarUsuarioDto dto, ClaimsPrincipal user, GestionarUsuario uc) =>
+{
+    string? rolClaim = user.FindFirst(ClaimTypes.Role)?.Value ?? user.FindFirst("role")?.Value;
+    if (!Enum.TryParse<RolUsuario>(rolClaim, out RolUsuario solicitanteRol))
+        return Results.BadRequest(new { error = "Token sin rol válido." });
+    Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid solicitanteVet);
+    var comando = new GestionarUsuarioComando(id, dto.NuevoNombre, dto.Accion, solicitanteRol, solicitanteVet);
+    return ToHttp(await uc.EjecutarAsync(comando));
+})
+.WithName("GestionarUsuario").WithTags("Usuarios").RequireAuthorization(p => p.RequireRole(Administrador, SuperAdmin));
+
 // ═══════════════════ CLIENTES Y MASCOTAS (staff de la veterinaria) ═══════════════════
 app.MapPost("/api/registro-rapido", async (RegistrarClienteConMascotaComando cmd, RegistrarClienteConMascota uc) =>
     ToHttp(await uc.EjecutarAsync(cmd)))
@@ -324,6 +351,52 @@ app.MapGet("/api/veterinarias/{veterinariaId:guid}/clientes", async (Guid veteri
 app.MapGet("/api/clientes/{clienteId:guid}/mascotas", async (Guid clienteId, ListarMascotasDeCliente uc) =>
     Results.Ok(await uc.EjecutarAsync(clienteId)))
 .WithName("MascotasDeCliente").WithTags("Mascotas")
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
+
+// Crear SOLO un cliente (sin mascota). El veterinariaId sale del token.
+app.MapPost("/api/clientes", async (CrearClienteDto dto, ClaimsPrincipal user, CrearCliente uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+    var comando = new CrearClienteComando(veterinariaId, dto.Nombre, dto.Telefono, dto.Origen);
+    return ToHttp(await uc.EjecutarAsync(comando));
+})
+.WithName("CrearCliente").WithTags("Clientes")
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
+
+// Editar un cliente.
+app.MapPut("/api/clientes/{id:guid}", async (Guid id, EditarClienteDto dto, ClaimsPrincipal user, EditarCliente uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+    var comando = new EditarClienteComando(id, veterinariaId, dto.Nombre, dto.Telefono, dto.Origen);
+    return ToHttp(await uc.EjecutarAsync(comando));
+})
+.WithName("EditarCliente").WithTags("Clientes")
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
+
+// Agregar una mascota a un cliente existente.
+app.MapPost("/api/mascotas", async (AgregarMascotaDto dto, ClaimsPrincipal user, AgregarMascota uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+    var comando = new AgregarMascotaComando(veterinariaId, dto.ClienteId, dto.Nombre, dto.Especie,
+        dto.Sexo, dto.Raza, dto.FechaNacimiento, dto.PesoKg, dto.Padecimientos, dto.Esterilizado);
+    return ToHttp(await uc.EjecutarAsync(comando));
+})
+.WithName("AgregarMascota").WithTags("Mascotas")
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
+
+// Editar una mascota.
+app.MapPut("/api/mascotas/{id:guid}", async (Guid id, EditarMascotaDto dto, ClaimsPrincipal user, EditarMascota uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+    var comando = new EditarMascotaComando(id, veterinariaId, dto.Nombre, dto.Especie,
+        dto.Sexo, dto.Raza, dto.FechaNacimiento, dto.PesoKg, dto.Padecimientos, dto.Esterilizado);
+    return ToHttp(await uc.EjecutarAsync(comando));
+})
+.WithName("EditarMascota").WithTags("Mascotas")
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
 // ═══════════════════ EXPEDIENTE (veterinario y admin) ═══════════════════
@@ -348,6 +421,17 @@ app.MapGet("/api/veterinarias/{veterinariaId:guid}/citas/proximas", async (Guid 
 .WithName("ProximasCitas").WithTags("Citas")
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
+// Cambiar el estado de una cita (atender / cancelar / no asistió). El veterinariaId sale del token.
+app.MapPost("/api/citas/{id:guid}/estado", async (Guid id, CambiarEstadoCitaDto dto, ClaimsPrincipal user, CambiarEstadoCita uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+    var comando = new CambiarEstadoCitaComando(id, dto.Accion, veterinariaId);
+    return ToHttp(await uc.EjecutarAsync(comando));
+})
+.WithName("CambiarEstadoCita").WithTags("Citas")
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
+
 // ═══════════════════ PUNTO DE VENTA ═══════════════════
 // Catálogo: admin gestiona productos.
 app.MapPost("/api/productos", async (AgregarProductoComando cmd, AgregarProducto uc) =>
@@ -365,6 +449,45 @@ app.MapPost("/api/ventas", async (RegistrarVentaComando cmd, RegistrarVenta uc) 
     ToHttp(await uc.EjecutarAsync(cmd)))
 .WithName("RegistrarVenta").WithTags("PuntoVenta")
 .RequireAuthorization(p => p.RequireRole(Administrador, Recepcionista));
+
+// Editar un producto (Admin). El veterinariaId sale del token.
+app.MapPut("/api/productos/{id:guid}", async (Guid id, EditarProductoDto dto, ClaimsPrincipal user, EditarProducto uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+    var comando = new EditarProductoComando(id, veterinariaId, dto.Nombre, dto.Categoria, dto.Precio);
+    return ToHttp(await uc.EjecutarAsync(comando));
+})
+.WithName("EditarProducto").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador));
+
+// Reabastecer stock de un producto (Admin).
+app.MapPost("/api/productos/{id:guid}/reabastecer", async (Guid id, ReabastecerStockDto dto, ClaimsPrincipal user, ReabastecerStock uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+    var comando = new ReabastecerStockComando(id, veterinariaId, dto.Cantidad);
+    return ToHttp(await uc.EjecutarAsync(comando));
+})
+.WithName("ReabastecerStock").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador));
+
+// Desactivar (baja lógica) un producto del catálogo (Admin).
+app.MapPost("/api/productos/{id:guid}/desactivar", async (Guid id, ClaimsPrincipal user, DesactivarProducto uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+    return ToHttp(await uc.EjecutarAsync(id, veterinariaId));
+})
+.WithName("DesactivarProducto").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador));
+
+// Historial de ventas de la veterinaria (Admin), con rango de fechas opcional.
+app.MapGet("/api/veterinarias/{veterinariaId:guid}/ventas", async (Guid veterinariaId, DateTime? desde, DateTime? hasta, ListarVentas uc) =>
+    Results.Ok(await uc.EjecutarAsync(veterinariaId, desde, hasta)))
+.WithName("ListarVentas").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador));
+
+// Historial de compras de un cliente (Admin/Recepcionista).
+app.MapGet("/api/clientes/{clienteId:guid}/ventas", async (Guid clienteId, ListarVentasDeCliente uc) =>
+    Results.Ok(await uc.EjecutarAsync(clienteId)))
+.WithName("VentasDeCliente").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador, Recepcionista));
 
 // ═══════════════════ RECORDATORIOS (admin) ═══════════════════
 app.MapPost("/api/veterinarias/{veterinariaId:guid}/recordatorios/enviar", async (Guid veterinariaId, int? dias, EnviarRecordatorios uc) =>
@@ -438,3 +561,18 @@ record CrearDuenoDto(Guid ClienteId, string Pin);
 
 // DTO para resetear el PIN de un usuario.
 record ResetearPinDto(string NuevoPin);
+
+// ── DTOs de las mejoras (mejoras-mvp) ──
+record CambiarEstadoCitaDto(AccionCita Accion);
+record EditarProductoDto(string Nombre, CategoriaProducto Categoria, decimal Precio);
+record ReabastecerStockDto(int Cantidad);
+record CrearClienteDto(string Nombre, string Telefono, OrigenCliente Origen);
+record EditarClienteDto(string Nombre, string Telefono, OrigenCliente Origen);
+record AgregarMascotaDto(
+    Guid ClienteId, string Nombre, EspecieMascota Especie, SexoMascota Sexo,
+    string? Raza, DateOnly? FechaNacimiento, decimal? PesoKg, string? Padecimientos, bool? Esterilizado);
+record EditarMascotaDto(
+    string Nombre, EspecieMascota Especie, SexoMascota Sexo,
+    string? Raza, DateOnly? FechaNacimiento, decimal? PesoKg, string? Padecimientos, bool? Esterilizado);
+record CambiarMiPinDto(string PinActual, string NuevoPin);
+record GestionarUsuarioDto(string? NuevoNombre, AccionUsuario? Accion);

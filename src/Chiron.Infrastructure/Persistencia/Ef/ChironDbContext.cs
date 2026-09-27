@@ -41,6 +41,13 @@ public sealed class ChironDbContext : DbContext
         // Producto: el precio como decimal con precisión monetaria.
         modelBuilder.Entity<Producto>().Property(p => p.Precio).HasPrecision(18, 2);
 
+        // Mascota: peso con precisión.
+        modelBuilder.Entity<Mascota>().Property(m => m.PesoKg).HasPrecision(6, 2);
+
+        // RegistroMedico: peso y temperatura con precisión.
+        modelBuilder.Entity<RegistroMedico>().Property(r => r.PesoKg).HasPrecision(6, 2);
+        modelBuilder.Entity<RegistroMedico>().Property(r => r.TemperaturaC).HasPrecision(4, 1);
+
         // Venta: clave, total con precisión, y sus líneas como entidad propiedad (owned).
         modelBuilder.Entity<Venta>(venta =>
         {

@@ -34,13 +34,33 @@ public sealed class RegistroMedico : EntidadBase
     /// </summary>
     public DateOnly? FechaProximaAplicacion { get; private set; }
 
+    /// <summary>Diagnóstico de la consulta (opcional).</summary>
+    public string? Diagnostico { get; private set; }
+
+    /// <summary>Tratamiento administrado/recetado (medicamentos, dosis, indicaciones) (opcional).</summary>
+    public string? Tratamiento { get; private set; }
+
+    /// <summary>Peso de la mascota registrado en la consulta, en kg (opcional). Base del histórico de peso.</summary>
+    public decimal? PesoKg { get; private set; }
+
+    /// <summary>Temperatura de la mascota en °C (opcional).</summary>
+    public decimal? TemperaturaC { get; private set; }
+
+    /// <summary>Notas / observaciones adicionales del veterinario (opcional).</summary>
+    public string? Notas { get; private set; }
+
     private RegistroMedico(
         Guid veterinariaId,
         Guid mascotaId,
         TipoRegistroMedico tipo,
         DateOnly fecha,
         string descripcion,
-        DateOnly? fechaProximaAplicacion)
+        DateOnly? fechaProximaAplicacion,
+        string? diagnostico,
+        string? tratamiento,
+        decimal? pesoKg,
+        decimal? temperaturaC,
+        string? notas)
     {
         VeterinariaId = veterinariaId;
         MascotaId = mascotaId;
@@ -48,6 +68,11 @@ public sealed class RegistroMedico : EntidadBase
         Fecha = fecha;
         Descripcion = descripcion;
         FechaProximaAplicacion = fechaProximaAplicacion;
+        Diagnostico = diagnostico;
+        Tratamiento = tratamiento;
+        PesoKg = pesoKg;
+        TemperaturaC = temperaturaC;
+        Notas = notas;
     }
 
     /// <summary>
@@ -59,7 +84,12 @@ public sealed class RegistroMedico : EntidadBase
         TipoRegistroMedico tipo,
         DateOnly fecha,
         string descripcion,
-        DateOnly? fechaProximaAplicacion = null)
+        DateOnly? fechaProximaAplicacion = null,
+        string? diagnostico = null,
+        string? tratamiento = null,
+        decimal? pesoKg = null,
+        decimal? temperaturaC = null,
+        string? notas = null)
     {
         if (veterinariaId == Guid.Empty)
             return Result<RegistroMedico>.Falla("El registro debe pertenecer a una veterinaria válida.");
@@ -75,8 +105,15 @@ public sealed class RegistroMedico : EntidadBase
             return Result<RegistroMedico>.Falla(
                 "La fecha de próxima aplicación debe ser posterior a la fecha de atención.");
 
+        // El peso, si se indica, debe ser positivo.
+        if (pesoKg is { } peso && peso <= 0)
+            return Result<RegistroMedico>.Falla("El peso debe ser mayor que cero.");
+
+        static string? Limpiar(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
         var registro = new RegistroMedico(
-            veterinariaId, mascotaId, tipo, fecha, descripcion.Trim(), fechaProximaAplicacion);
+            veterinariaId, mascotaId, tipo, fecha, descripcion.Trim(), fechaProximaAplicacion,
+            Limpiar(diagnostico), Limpiar(tratamiento), pesoKg, temperaturaC, Limpiar(notas));
         return Result<RegistroMedico>.Exito(registro);
     }
 

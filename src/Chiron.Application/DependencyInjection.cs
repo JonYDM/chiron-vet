@@ -24,12 +24,17 @@ public static class DependencyInjection
         services.AddTransient<RegistrarClienteConMascota>();
         services.AddTransient<BuscarClientes>();
         services.AddTransient<ListarMascotasDeCliente>();
+        services.AddTransient<CrearCliente>();
+        services.AddTransient<EditarCliente>();
+        services.AddTransient<AgregarMascota>();
+        services.AddTransient<EditarMascota>();
 
         services.AddTransient<AgregarRegistroMedico>();
         services.AddTransient<VerExpedienteMascota>();
 
         services.AddTransient<AgendarCita>();
         services.AddTransient<VerAgenda>();
+        services.AddTransient<CambiarEstadoCita>();
 
         services.AddTransient<GenerarRecordatorios>();
         services.AddTransient<EnviarRecordatorios>();
@@ -37,6 +42,11 @@ public static class DependencyInjection
         services.AddTransient<AgregarProducto>();
         services.AddTransient<ListarCatalogo>();
         services.AddTransient<RegistrarVenta>();
+        services.AddTransient<EditarProducto>();
+        services.AddTransient<ReabastecerStock>();
+        services.AddTransient<DesactivarProducto>();
+        services.AddTransient<ListarVentas>();
+        services.AddTransient<ListarVentasDeCliente>();
 
         services.AddTransient<Login>();
         services.AddTransient<CrearUsuarioStaff>();
@@ -45,6 +55,8 @@ public static class DependencyInjection
         services.AddTransient<ListarUsuariosDeVeterinaria>();
         services.AddTransient<ListarAdministradores>();
         services.AddTransient<ObtenerUsuarioDeCliente>();
+        services.AddTransient<CambiarMiPin>();
+        services.AddTransient<GestionarUsuario>();
 
         return services;
     }

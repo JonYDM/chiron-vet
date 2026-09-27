@@ -68,4 +68,10 @@ public sealed class VentaRepositorioEf : RepositorioEf<Venta>, IVentaRepository
         => await Conjunto.Include(v => v.Lineas)
             .Where(v => v.VeterinariaId == veterinariaId && v.FechaHora >= desde && v.FechaHora <= hasta)
             .OrderByDescending(v => v.FechaHora).ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Venta>> ListarPorClienteAsync(
+        Guid clienteId, CancellationToken cancellationToken = default)
+        => await Conjunto.Include(v => v.Lineas)
+            .Where(v => v.ClienteId == clienteId)
+            .OrderByDescending(v => v.FechaHora).ToListAsync(cancellationToken);
 }
