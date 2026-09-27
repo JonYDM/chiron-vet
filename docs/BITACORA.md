@@ -6,6 +6,31 @@
 
 ## Sesión 2 (cont.) — 2026-09-26
 
+### Casos de uso de Application (H2.2b + H2.3) — ✅ COMPLETADO
+Rama: `feature/H2.2b-casos-uso` (parte de la rama del núcleo multi-tenant).
+
+Primera lógica de la **capa de Aplicación** (patrón caso de uso + comando):
+- **Contratos** (Application): `IClienteRepository`, `IMascotaRepository` (extienden IRepository<T> con consultas de negocio filtradas por tenant).
+- **Casos de uso**:
+  - `RegistrarClienteConMascota` (H2.2b, registro rápido): valida veterinaria activa → crea cliente → crea mascota asociada → persiste. Devuelve IDs.
+  - `BuscarClientes` (H2.3): por nombre (case-insensitive) o todos si texto vacío.
+  - `ListarMascotasDeCliente` (H2.3).
+  - Objetos: `RegistrarClienteConMascotaComando` (record), `RegistroRapidoResultado` (record).
+- **Implementaciones** (Infrastructure): `ClienteRepositorioEnMemoria`, `MascotaRepositorioEnMemoria` (heredan de RepositorioEnMemoria<T>).
+- **DI**: casos de uso como Transient en Application. En Infrastructure, los repos específicos como Singleton y `IRepository<T>` redirige a la MISMA instancia (consistencia de datos).
+
+Verificación (`dotnet run`): registro rápido de María+Firulais OK; búsqueda "maría" → 2 clientes; mascotas de María → Firulais (edad 5); rechazo de registro en veterinaria inexistente.
+
+### Estado
+- Épica 2 (clientes/mascotas) prácticamente completa a nivel dominio + aplicación.
+
+### Siguiente paso sugerido
+- Épica 4 (Citas) o Épica 3 (Expediente médico), o exponer API REST (Épica 8) para conectar frontend.
+
+---
+
+## Sesión 2 (cont.) — 2026-09-26
+
 ### Bloque de entidades del núcleo (Épica 1.5 + H2.2) — ✅ COMPLETADO
 Rama: `feature/H1.5-nucleo-multitenant` (parte de H2.1).
 

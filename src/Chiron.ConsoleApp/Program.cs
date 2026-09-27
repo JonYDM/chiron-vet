@@ -1,9 +1,10 @@
 using Chiron.Application;
+using Chiron.Application.Clientes;
 using Chiron.Application.Common;
+using Chiron.Application.Mascotas;
 using Chiron.Domain.Clientes;
 using Chiron.Domain.Common;
 using Chiron.Domain.Mascotas;
-using Chiron.Domain.Usuarios;
 using Chiron.Domain.Veterinarias;
 using Chiron.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,8 +12,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Chiron.ConsoleApp — Punto de entrada y composición de la aplicación.
-// Demuestra el modelo multi-tenant: Veterinaria → Usuario / Cliente → Mascota.
+// Chiron.ConsoleApp — Demostración de los casos de uso de la capa de Aplicación.
 // ─────────────────────────────────────────────────────────────────────────────
 
 using IHost host = Host.CreateDefaultBuilder(args)
@@ -24,60 +24,61 @@ using IHost host = Host.CreateDefaultBuilder(args)
     .Build();
 
 ILogger<Program> logger = host.Services.GetRequiredService<ILogger<Program>>();
-logger.LogInformation("🐾 Chiron — Sistema de gestión para veterinarias");
+logger.LogInformation("🐾 Chiron — Demostración de casos de uso");
 
-// Repositorios resueltos por DI (uno por tipo de entidad).
+// Alta de una veterinaria (tenant) para el escenario.
 IRepository<Veterinaria> veterinarias = host.Services.GetRequiredService<IRepository<Veterinaria>>();
-IRepository<Usuario> usuarios = host.Services.GetRequiredService<IRepository<Usuario>>();
-IRepository<Cliente> clientes = host.Services.GetRequiredService<IRepository<Cliente>>();
-IRepository<Mascota> mascotas = host.Services.GetRequiredService<IRepository<Mascota>>();
-
-// ── 1. Alta de la veterinaria (tenant) ──
-Result<Veterinaria> rVet = Veterinaria.Crear("Veterinaria San Francisco", "7771112233");
-if (!rVet.EsExito) { logger.LogError(rVet.Error); return; }
-Veterinaria vet = rVet.Valor!;
+Veterinaria vet = Veterinaria.Crear("Veterinaria San Francisco", "7771112233").Valor!;
 await veterinarias.AgregarAsync(vet);
-logger.LogInformation("🏥 Veterinaria dada de alta: {Nombre} (Id {Id})", vet.Nombre, vet.Id);
+logger.LogInformation("🏥 Veterinaria: {Nombre}", vet.Nombre);
 
-// ── 2. Usuario administrador de esa veterinaria ──
-Result<Usuario> rUser = Usuario.Crear(vet.Id, "Dra. Ana López", "ana@sanfrancisco.mx", RolUsuario.Administrador);
-if (rUser.EsExito)
-{
-    await usuarios.AgregarAsync(rUser.Valor!);
-    logger.LogInformation("👤 Usuario creado: {Nombre} | Rol: {Rol}", rUser.Valor!.Nombre, rUser.Valor.Rol);
-}
+// ── Caso de uso 1: REGISTRO RÁPIDO (llega María con Firulais) ──
+var registroRapido = host.Services.GetRequiredService<RegistrarClienteConMascota>();
+var comando = new RegistrarClienteConMascotaComando(
+    VeterinariaId: vet.Id,
+    NombreCliente: "María González",
+    TelefonoCliente: "777-123-4567",
+    OrigenCliente: OrigenCliente.Recomendacion,
+    NombreMascota: "Firulais",
+    Especie: EspecieMascota.Perro,
+    Sexo: SexoMascota.Macho,
+    Raza: "Labrador",
+    FechaNacimiento: new DateOnly(2021, 5, 10));
 
-// ── 3. Cliente (dueño) de esa veterinaria ──
-Result<Cliente> rCli = Cliente.Crear(vet.Id, "María González", "777-123-4567", OrigenCliente.Recomendacion);
-if (!rCli.EsExito) { logger.LogError(rCli.Error); return; }
-Cliente cliente = rCli.Valor!;
-await clientes.AgregarAsync(cliente);
-logger.LogInformation("🧑 Cliente registrado: {Nombre} | Tel: {Tel}", cliente.Nombre, cliente.Telefono);
+Result<RegistroRapidoResultado> resultado = await registroRapido.EjecutarAsync(comando);
+if (resultado.EsExito)
+    logger.LogInformation("✅ Registro rápido OK → ClienteId={C} | MascotaId={M}",
+        resultado.Valor!.ClienteId, resultado.Valor.MascotaId);
+else
+    logger.LogWarning("⛔ Registro rápido falló: {Error}", resultado.Error);
 
-// ── 4. Mascota (paciente) asociada al cliente ──
-Result<Mascota> rMas = Mascota.Crear(
-    vet.Id, cliente.Id, "Firulais", EspecieMascota.Perro, SexoMascota.Macho,
-    raza: "Labrador", fechaNacimiento: new DateOnly(2021, 5, 10));
-if (rMas.EsExito)
-{
-    await mascotas.AgregarAsync(rMas.Valor!);
-    Mascota m = rMas.Valor!;
-    logger.LogInformation("🐕 Mascota registrada: {Nombre} | {Especie} {Raza} | Edad: {Edad} años | Dueño: {ClienteId}",
-        m.Nombre, m.Especie, m.Raza, m.EdadEnAnios(), m.ClienteId);
-}
+// Registro rápido de un segundo cliente para probar la búsqueda.
+await registroRapido.EjecutarAsync(new RegistrarClienteConMascotaComando(
+    vet.Id, "María Fernanda Ruiz", "7779998877", OrigenCliente.Google,
+    "Michi", EspecieMascota.Gato));
 
-// ── 5. Casos inválidos (validaciones) ──
-Result<Cliente> sinVet = Cliente.Crear(Guid.Empty, "Sin Tenant", "7771234567");
-if (!sinVet.EsExito) logger.LogWarning("⛔ Rechazado (esperado): {Error}", sinVet.Error);
+// ── Caso de uso 2: BUSCAR CLIENTES por nombre ──
+var buscarClientes = host.Services.GetRequiredService<BuscarClientes>();
+IReadOnlyList<Cliente> encontrados = await buscarClientes.EjecutarAsync(vet.Id, "maría");
+logger.LogInformation("🔎 Clientes que contienen 'maría': {Total}", encontrados.Count);
+foreach (Cliente c in encontrados)
+    logger.LogInformation("   • {Nombre} ({Tel})", c.Nombre, c.Telefono);
 
-Result<Mascota> masSinDueno = Mascota.Crear(vet.Id, Guid.Empty, "Michi", EspecieMascota.Gato);
-if (!masSinDueno.EsExito) logger.LogWarning("⛔ Rechazado (esperado): {Error}", masSinDueno.Error);
+// ── Caso de uso 3: LISTAR MASCOTAS de un cliente ──
+var listarMascotas = host.Services.GetRequiredService<ListarMascotasDeCliente>();
+Guid clienteId = resultado.Valor!.ClienteId;
+IReadOnlyList<Mascota> mascotasCliente = await listarMascotas.EjecutarAsync(clienteId);
+logger.LogInformation("🐕 Mascotas de María González: {Total}", mascotasCliente.Count);
+foreach (Mascota m in mascotasCliente)
+    logger.LogInformation("   • {Nombre} — {Especie} {Raza} (edad {Edad})",
+        m.Nombre, m.Especie, m.Raza, m.EdadEnAnios());
 
-// ── Resumen ──
-logger.LogInformation("Resumen → Veterinarias: {V} | Usuarios: {U} | Clientes: {C} | Mascotas: {M}",
-    (await veterinarias.ObtenerTodosAsync()).Count,
-    (await usuarios.ObtenerTodosAsync()).Count,
-    (await clientes.ObtenerTodosAsync()).Count,
-    (await mascotas.ObtenerTodosAsync()).Count);
+// ── Validación: registro rápido en veterinaria inexistente ──
+Result<RegistroRapidoResultado> invalido = await registroRapido.EjecutarAsync(
+    new RegistrarClienteConMascotaComando(
+        Guid.NewGuid(), "Cliente X", "7770000000", OrigenCliente.NoEspecificado,
+        "Rex", EspecieMascota.Perro));
+if (!invalido.EsExito)
+    logger.LogWarning("⛔ Rechazado (esperado): {Error}", invalido.Error);
 
 await host.StopAsync();

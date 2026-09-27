@@ -30,8 +30,8 @@ Núcleo que permite rentar el software a múltiples veterinarias con aislamiento
 |----|----------|--------|
 | H2.1 | Registrar cliente (dueño) con validaciones | ✅ |
 | H2.2 | Registrar mascota asociada a un cliente (relación 1 Cliente → N Mascotas) | ✅ |
-| H2.2b | Caso de uso "Registro rápido": alta de cliente + su primera mascota en una operación | ⬜ |
-| H2.3 | Listar y buscar clientes / mascotas | ⬜ |
+| H2.2b | Caso de uso "Registro rápido": alta de cliente + su primera mascota en una operación | ✅ |
+| H2.3 | Listar y buscar clientes / mascotas | ✅ |
 
 ## ÉPICA 3 — Expediente médico
 | ID | Historia | Estado |
