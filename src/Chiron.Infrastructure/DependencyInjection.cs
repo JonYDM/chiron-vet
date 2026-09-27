@@ -1,3 +1,4 @@
+using Chiron.Application.Citas;
 using Chiron.Application.Clientes;
 using Chiron.Application.Common;
 using Chiron.Application.Expedientes;
@@ -36,6 +37,9 @@ public static class DependencyInjection
 
         services.AddSingleton<RegistroMedicoRepositorioEnMemoria>();
         services.AddSingleton<IRegistroMedicoRepository>(sp => sp.GetRequiredService<RegistroMedicoRepositorioEnMemoria>());
+
+        services.AddSingleton<CitaRepositorioEnMemoria>();
+        services.AddSingleton<ICitaRepository>(sp => sp.GetRequiredService<CitaRepositorioEnMemoria>());
 
         return services;
     }

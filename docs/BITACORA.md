@@ -6,6 +6,28 @@
 
 ## Sesión 2 (cont.) — 2026-09-26
 
+### 🎉 ÉPICA 4 (Citas) COMPLETADA — H4.1, H4.2
+Rama: `feature/H4-citas`.
+
+- **Domain**: `Citas/EstadoCita.cs` (Programada, Atendida, Cancelada, NoAsistio) y `Citas/Cita.cs` (VeterinariaId, MascotaId, FechaHora, Motivo, Estado). Valida fecha futura. Transiciones controladas: MarcarAtendida/Cancelar/MarcarNoAsistio solo desde Programada.
+- **Application**: `ICitaRepository` (agenda del día, próximas), casos de uso `AgendarCita` (H4.1) y `VerAgenda` (H4.2), comando `AgendarCitaComando`.
+- **Infrastructure**: `CitaRepositorioEnMemoria`.
+- **DI**: casos de uso Transient; repo Singleton.
+- Verificación (`dotnet run`): 2 citas agendadas; rechazo de cita en el pasado; próximas ordenadas; agenda del día filtra correcto.
+
+### Estado global del backend
+Épicas completadas: 1 (fundación), 1.5 (multi-tenant), 2 (clientes/mascotas), 3 (expediente), 4 (citas).
+Dominio + Aplicación + Infra (en memoria) funcionando y probados en consola.
+
+### Siguiente paso sugerido
+- Épica 5 (Recordatorios — usa FechaProximaAplicacion del expediente + citas próximas).
+- Épica 6 (Punto de venta).
+- Épica 8 (API REST) para conectar frontend.
+
+---
+
+## Sesión 2 (cont.) — 2026-09-26
+
 ### 🎉 ÉPICA 3 (Expediente médico) COMPLETADA — H3.1, H3.2, H3.3
 Rama: `feature/H3-expediente-medico`.
 

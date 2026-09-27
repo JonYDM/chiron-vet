@@ -1,10 +1,10 @@
 using Chiron.Application;
+using Chiron.Application.Citas;
 using Chiron.Application.Clientes;
 using Chiron.Application.Common;
-using Chiron.Application.Expedientes;
+using Chiron.Domain.Citas;
 using Chiron.Domain.Clientes;
 using Chiron.Domain.Common;
-using Chiron.Domain.Expedientes;
 using Chiron.Domain.Mascotas;
 using Chiron.Domain.Veterinarias;
 using Chiron.Infrastructure;
@@ -13,7 +13,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Chiron.ConsoleApp — Demostración: registro rápido + expediente médico.
+// Chiron.ConsoleApp — Demostración: registro rápido + agenda de citas.
 // ─────────────────────────────────────────────────────────────────────────────
 
 using IHost host = Host.CreateDefaultBuilder(args)
@@ -25,9 +25,9 @@ using IHost host = Host.CreateDefaultBuilder(args)
     .Build();
 
 ILogger<Program> logger = host.Services.GetRequiredService<ILogger<Program>>();
-logger.LogInformation("🐾 Chiron — Expediente médico");
+logger.LogInformation("🐾 Chiron — Agenda de citas");
 
-// Preparar escenario: veterinaria + registro rápido de María con Firulais.
+// Escenario: veterinaria + María con Firulais.
 IRepository<Veterinaria> veterinarias = host.Services.GetRequiredService<IRepository<Veterinaria>>();
 Veterinaria vet = Veterinaria.Crear("Veterinaria San Francisco", "7771112233").Valor!;
 await veterinarias.AgregarAsync(vet);
@@ -35,44 +35,37 @@ await veterinarias.AgregarAsync(vet);
 var registroRapido = host.Services.GetRequiredService<RegistrarClienteConMascota>();
 Result<RegistroRapidoResultado> alta = await registroRapido.EjecutarAsync(new RegistrarClienteConMascotaComando(
     vet.Id, "María González", "7771234567", OrigenCliente.Recomendacion,
-    "Firulais", EspecieMascota.Perro, SexoMascota.Macho, "Labrador", new DateOnly(2021, 5, 10)));
+    "Firulais", EspecieMascota.Perro));
 Guid mascotaId = alta.Valor!.MascotaId;
-logger.LogInformation("🐕 Mascota Firulais lista (Id {Id})", mascotaId);
 
-var agregarRegistro = host.Services.GetRequiredService<AgregarRegistroMedico>();
+var agendarCita = host.Services.GetRequiredService<AgendarCita>();
 
-// ── H3.1: registrar una consulta ──
-Result<Guid> consulta = await agregarRegistro.EjecutarAsync(new AgregarRegistroMedicoComando(
-    vet.Id, mascotaId, TipoRegistroMedico.Consulta, new DateOnly(2026, 9, 1),
-    "Revisión general. Peso 28 kg, saludable."));
-logger.LogInformation(consulta.EsExito ? "✅ Consulta registrada" : $"⛔ {consulta.Error}");
+// ── H4.1: agendar citas ──
+DateTime manana10 = DateTime.UtcNow.Date.AddDays(1).AddHours(10);
+Result<Guid> cita1 = await agendarCita.EjecutarAsync(
+    new AgendarCitaComando(vet.Id, mascotaId, manana10, "Vacunación anual"));
+logger.LogInformation(cita1.EsExito ? "✅ Cita agendada para mañana 10:00" : $"⛔ {cita1.Error}");
 
-// ── H3.2: registrar una vacuna CON próxima aplicación (base de recordatorio) ──
-Result<Guid> vacuna = await agregarRegistro.EjecutarAsync(new AgregarRegistroMedicoComando(
-    vet.Id, mascotaId, TipoRegistroMedico.Vacuna, new DateOnly(2026, 9, 1),
-    "Vacuna antirrábica anual.", FechaProximaAplicacion: new DateOnly(2027, 9, 1)));
-logger.LogInformation(vacuna.EsExito ? "✅ Vacuna registrada (próxima: 2027-09-01)" : $"⛔ {vacuna.Error}");
+DateTime pasadoManana16 = DateTime.UtcNow.Date.AddDays(2).AddHours(16);
+await agendarCita.EjecutarAsync(
+    new AgendarCitaComando(vet.Id, mascotaId, pasadoManana16, "Revisión de rutina"));
 
-// ── H3.2: desparasitación con próxima aplicación ──
-await agregarRegistro.EjecutarAsync(new AgregarRegistroMedicoComando(
-    vet.Id, mascotaId, TipoRegistroMedico.Desparasitacion, new DateOnly(2026, 9, 1),
-    "Desparasitación interna.", FechaProximaAplicacion: new DateOnly(2026, 12, 1)));
+// ── Validación: cita en el pasado (debe fallar) ──
+Result<Guid> pasada = await agendarCita.EjecutarAsync(
+    new AgendarCitaComando(vet.Id, mascotaId, DateTime.UtcNow.AddHours(-2), "Cita en el pasado"));
+if (!pasada.EsExito)
+    logger.LogWarning("⛔ Rechazado (esperado): {Error}", pasada.Error);
 
-// ── Validación: próxima aplicación anterior a la fecha (debe fallar) ──
-Result<Guid> invalido = await agregarRegistro.EjecutarAsync(new AgregarRegistroMedicoComando(
-    vet.Id, mascotaId, TipoRegistroMedico.Vacuna, new DateOnly(2026, 9, 1),
-    "Fecha inválida.", FechaProximaAplicacion: new DateOnly(2026, 8, 1)));
-if (!invalido.EsExito)
-    logger.LogWarning("⛔ Rechazado (esperado): {Error}", invalido.Error);
+// ── H4.2: ver próximas citas ──
+var verAgenda = host.Services.GetRequiredService<VerAgenda>();
+IReadOnlyList<Cita> proximas = await verAgenda.ProximasAsync(vet.Id);
+logger.LogInformation("📅 Próximas citas programadas: {Total}", proximas.Count);
+foreach (Cita c in proximas)
+    logger.LogInformation("   • {Fecha:yyyy-MM-dd HH:mm} — {Motivo} [{Estado}]", c.FechaHora, c.Motivo, c.Estado);
 
-// ── H3.3: ver el expediente completo (más reciente primero) ──
-var verExpediente = host.Services.GetRequiredService<VerExpedienteMascota>();
-IReadOnlyList<RegistroMedico> expediente = await verExpediente.EjecutarAsync(mascotaId);
-logger.LogInformation("📋 Expediente de Firulais ({Total} registros):", expediente.Count);
-foreach (RegistroMedico r in expediente)
-{
-    string proxima = r.FechaProximaAplicacion is { } p ? $" | próxima: {p}" : "";
-    logger.LogInformation("   • [{Fecha}] {Tipo}: {Desc}{Proxima}", r.Fecha, r.Tipo, r.Descripcion, proxima);
-}
+// ── H4.2: agenda de mañana ──
+DateOnly manana = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(1));
+IReadOnlyList<Cita> agendaManana = await verAgenda.DelDiaAsync(vet.Id, manana);
+logger.LogInformation("📅 Agenda de mañana ({Dia}): {Total} cita(s)", manana, agendaManana.Count);
 
 await host.StopAsync();

@@ -1,3 +1,4 @@
+using Chiron.Application.Citas;
 using Chiron.Application.Clientes;
 using Chiron.Application.Expedientes;
 using Chiron.Application.Mascotas;
@@ -23,6 +24,9 @@ public static class DependencyInjection
 
         services.AddTransient<AgregarRegistroMedico>();
         services.AddTransient<VerExpedienteMascota>();
+
+        services.AddTransient<AgendarCita>();
+        services.AddTransient<VerAgenda>();
 
         return services;
     }

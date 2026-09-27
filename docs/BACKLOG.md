@@ -43,8 +43,8 @@ Núcleo que permite rentar el software a múltiples veterinarias con aislamiento
 ## ÉPICA 4 — Citas
 | ID | Historia | Estado |
 |----|----------|--------|
-| H4.1 | Agendar cita para una mascota | ⬜ |
-| H4.2 | Ver agenda del día / próximas citas | ⬜ |
+| H4.1 | Agendar cita para una mascota | ✅ |
+| H4.2 | Ver agenda del día / próximas citas | ✅ |
 
 ## ÉPICA 5 — Recordatorios (diferenciador)
 | ID | Historia | Estado |
