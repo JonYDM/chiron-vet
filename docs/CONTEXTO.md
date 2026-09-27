@@ -42,7 +42,7 @@ No inventamos una categoría nueva; mejoramos lo existente:
 | Estilo de despliegue | **Monolito modular** (no microservicios al inicio) | Rápido, barato y manejable para un solo dev; se puede evolucionar a servicios cuando el negocio lo pida |
 | Base de datos (futuro) | **PostgreSQL** | Gratis, potente, corre excelente en Linux |
 | Pruebas iniciales | **Repositorio en memoria** | No requiere instalar BD todavía |
-| Despliegue (futuro) | **Ubuntu/Linux + Docker + Nginx** | Servidor barato, mismo código sin cambios |
+| Despliegue (futuro) | **Railway (Docker)** + PostgreSQL | Aloja API .NET y BD juntas, capa gratuita para empezar; Docker evita lock-in. Ver `DESPLIEGUE.md` |
 | Primer entregable | **Backend probado en consola** | Validar lógica antes de API/frontend |
 
 ### Principios de código
