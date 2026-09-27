@@ -45,5 +45,12 @@ public sealed class ListarCatalogo
 
     public Task<IReadOnlyList<Producto>> EjecutarAsync(
         Guid veterinariaId, CancellationToken cancellationToken = default)
-        => _productos.ListarPorVeterinariaAsync(veterinariaId, cancellationToken);
+        => FiltrarActivosAsync(veterinariaId, cancellationToken);
+
+    private async Task<IReadOnlyList<Producto>> FiltrarActivosAsync(
+        Guid veterinariaId, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<Producto> todos = await _productos.ListarPorVeterinariaAsync(veterinariaId, cancellationToken);
+        return todos.Where(p => p.Activo).ToList();
+    }
 }

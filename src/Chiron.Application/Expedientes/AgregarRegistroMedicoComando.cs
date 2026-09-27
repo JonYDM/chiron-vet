@@ -12,4 +12,9 @@ public sealed record AgregarRegistroMedicoComando(
     TipoRegistroMedico Tipo,
     DateOnly Fecha,
     string Descripcion,
-    DateOnly? FechaProximaAplicacion = null);
+    DateOnly? FechaProximaAplicacion = null,
+    string? Diagnostico = null,
+    string? Tratamiento = null,
+    decimal? PesoKg = null,
+    decimal? TemperaturaC = null,
+    string? Notas = null);

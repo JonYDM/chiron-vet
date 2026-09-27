@@ -32,7 +32,9 @@ public sealed class AgregarRegistroMedico
 
         Result<RegistroMedico> registroResult = RegistroMedico.Crear(
             comando.VeterinariaId, comando.MascotaId, comando.Tipo,
-            comando.Fecha, comando.Descripcion, comando.FechaProximaAplicacion);
+            comando.Fecha, comando.Descripcion, comando.FechaProximaAplicacion,
+            comando.Diagnostico, comando.Tratamiento, comando.PesoKg,
+            comando.TemperaturaC, comando.Notas);
         if (!registroResult.EsExito)
             return Result<Guid>.Falla(registroResult.Error!);
 

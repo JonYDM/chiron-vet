@@ -23,6 +23,9 @@ public sealed class Producto : EntidadBase
     /// <summary>Existencias disponibles en inventario.</summary>
     public int Stock { get; private set; }
 
+    /// <summary>Indica si el producto está activo en el catálogo (baja lógica).</summary>
+    public bool Activo { get; private set; }
+
     private Producto(Guid veterinariaId, string nombre, CategoriaProducto categoria, decimal precio, int stock)
     {
         VeterinariaId = veterinariaId;
@@ -30,6 +33,7 @@ public sealed class Producto : EntidadBase
         Categoria = categoria;
         Precio = precio;
         Stock = stock;
+        Activo = true;
     }
 
     /// <summary>
@@ -84,4 +88,20 @@ public sealed class Producto : EntidadBase
         Precio = nuevoPrecio;
         return Result<bool>.Exito(true);
     }
+
+    /// <summary>Actualiza nombre y categoría del producto (edición de catálogo).</summary>
+    public Result<bool> ActualizarDatos(string nombre, CategoriaProducto categoria)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+            return Result<bool>.Falla("El nombre del producto es obligatorio.");
+        Nombre = nombre.Trim();
+        Categoria = categoria;
+        return Result<bool>.Exito(true);
+    }
+
+    /// <summary>Da de baja lógica el producto (no se elimina para preservar histórico).</summary>
+    public void Desactivar() => Activo = false;
+
+    /// <summary>Reactiva un producto dado de baja.</summary>
+    public void Activar() => Activo = true;
 }

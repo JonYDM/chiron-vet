@@ -31,6 +31,15 @@ public sealed class Mascota : EntidadBase
     /// <summary>Fecha de nacimiento (opcional). Permite calcular la edad y recordatorios.</summary>
     public DateOnly? FechaNacimiento { get; private set; }
 
+    /// <summary>Peso actual en kg (opcional).</summary>
+    public decimal? PesoKg { get; private set; }
+
+    /// <summary>Padecimientos / condiciones previas (alergias, crónicos…) (opcional).</summary>
+    public string? Padecimientos { get; private set; }
+
+    /// <summary>Indica si la mascota está esterilizada (opcional/desconocido = null).</summary>
+    public bool? Esterilizado { get; private set; }
+
     private Mascota(
         Guid veterinariaId,
         Guid clienteId,
@@ -38,7 +47,10 @@ public sealed class Mascota : EntidadBase
         EspecieMascota especie,
         SexoMascota sexo,
         string? raza,
-        DateOnly? fechaNacimiento)
+        DateOnly? fechaNacimiento,
+        decimal? pesoKg,
+        string? padecimientos,
+        bool? esterilizado)
     {
         VeterinariaId = veterinariaId;
         ClienteId = clienteId;
@@ -47,6 +59,9 @@ public sealed class Mascota : EntidadBase
         Sexo = sexo;
         Raza = raza;
         FechaNacimiento = fechaNacimiento;
+        PesoKg = pesoKg;
+        Padecimientos = padecimientos;
+        Esterilizado = esterilizado;
     }
 
     /// <summary>
@@ -59,7 +74,10 @@ public sealed class Mascota : EntidadBase
         EspecieMascota especie,
         SexoMascota sexo = SexoMascota.NoEspecificado,
         string? raza = null,
-        DateOnly? fechaNacimiento = null)
+        DateOnly? fechaNacimiento = null,
+        decimal? pesoKg = null,
+        string? padecimientos = null,
+        bool? esterilizado = null)
     {
         if (veterinariaId == Guid.Empty)
             return Result<Mascota>.Falla("La mascota debe pertenecer a una veterinaria válida.");
@@ -74,11 +92,47 @@ public sealed class Mascota : EntidadBase
         if (fechaNacimiento is { } fn && fn > DateOnly.FromDateTime(DateTime.UtcNow))
             return Result<Mascota>.Falla("La fecha de nacimiento no puede ser futura.");
 
+        if (pesoKg is { } peso && peso <= 0)
+            return Result<Mascota>.Falla("El peso debe ser mayor que cero.");
+
         string? razaNormalizada = string.IsNullOrWhiteSpace(raza) ? null : raza.Trim();
+        string? padecimientosNorm = string.IsNullOrWhiteSpace(padecimientos) ? null : padecimientos.Trim();
 
         var mascota = new Mascota(
-            veterinariaId, clienteId, nombre.Trim(), especie, sexo, razaNormalizada, fechaNacimiento);
+            veterinariaId, clienteId, nombre.Trim(), especie, sexo, razaNormalizada,
+            fechaNacimiento, pesoKg, padecimientosNorm, esterilizado);
         return Result<Mascota>.Exito(mascota);
+    }
+
+    /// <summary>
+    /// Actualiza los datos editables de la mascota. Valida las mismas reglas que Crear.
+    /// </summary>
+    public Result<bool> ActualizarDatos(
+        string nombre,
+        EspecieMascota especie,
+        SexoMascota sexo,
+        string? raza,
+        DateOnly? fechaNacimiento,
+        decimal? pesoKg,
+        string? padecimientos,
+        bool? esterilizado)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+            return Result<bool>.Falla("El nombre de la mascota es obligatorio.");
+        if (fechaNacimiento is { } fn && fn > DateOnly.FromDateTime(DateTime.UtcNow))
+            return Result<bool>.Falla("La fecha de nacimiento no puede ser futura.");
+        if (pesoKg is { } peso && peso <= 0)
+            return Result<bool>.Falla("El peso debe ser mayor que cero.");
+
+        Nombre = nombre.Trim();
+        Especie = especie;
+        Sexo = sexo;
+        Raza = string.IsNullOrWhiteSpace(raza) ? null : raza.Trim();
+        FechaNacimiento = fechaNacimiento;
+        PesoKg = pesoKg;
+        Padecimientos = string.IsNullOrWhiteSpace(padecimientos) ? null : padecimientos.Trim();
+        Esterilizado = esterilizado;
+        return Result<bool>.Exito(true);
     }
 
     /// <summary>

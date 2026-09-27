@@ -1,0 +1,64 @@
+using Chiron.Domain.PuntoVenta;
+
+namespace Chiron.Application.PuntoVenta;
+
+/// <summary>Línea de una venta para exponer por la API.</summary>
+public sealed record LineaVentaDto(
+    Guid ProductoId,
+    string NombreProducto,
+    int Cantidad,
+    decimal PrecioUnitario,
+    decimal Subtotal);
+
+/// <summary>Venta para exponer por la API (con sus líneas).</summary>
+public sealed record VentaDto(
+    Guid Id,
+    Guid? ClienteId,
+    DateTime FechaHora,
+    decimal Total,
+    IReadOnlyList<LineaVentaDto> Lineas)
+{
+    public static VentaDto Desde(Venta v) => new(
+        v.Id,
+        v.ClienteId,
+        v.FechaHora,
+        v.Total,
+        v.Lineas.Select(l => new LineaVentaDto(
+            l.ProductoId, l.NombreProducto, l.Cantidad, l.PrecioUnitario, l.Subtotal)).ToList());
+}
+
+/// <summary>
+/// Caso de uso: historial de ventas de una veterinaria en un rango de fechas.
+/// Si no se indican fechas, usa un rango amplio por defecto (últimos 90 días).
+/// </summary>
+public sealed class ListarVentas
+{
+    private readonly IVentaRepository _ventas;
+
+    public ListarVentas(IVentaRepository ventas) => _ventas = ventas;
+
+    public async Task<IReadOnlyList<VentaDto>> EjecutarAsync(
+        Guid veterinariaId, DateTime? desde, DateTime? hasta, CancellationToken cancellationToken = default)
+    {
+        DateTime hastaReal = hasta ?? DateTime.UtcNow;
+        DateTime desdeReal = desde ?? hastaReal.AddDays(-90);
+        IReadOnlyList<Venta> ventas = await _ventas.ListarPorVeterinariaAsync(
+            veterinariaId, desdeReal, hastaReal, cancellationToken);
+        return ventas.Select(VentaDto.Desde).ToList();
+    }
+}
+
+/// <summary>Caso de uso: historial de compras de un cliente.</summary>
+public sealed class ListarVentasDeCliente
+{
+    private readonly IVentaRepository _ventas;
+
+    public ListarVentasDeCliente(IVentaRepository ventas) => _ventas = ventas;
+
+    public async Task<IReadOnlyList<VentaDto>> EjecutarAsync(
+        Guid clienteId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<Venta> ventas = await _ventas.ListarPorClienteAsync(clienteId, cancellationToken);
+        return ventas.Select(VentaDto.Desde).ToList();
+    }
+}

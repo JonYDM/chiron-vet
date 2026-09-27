@@ -15,4 +15,14 @@ public sealed class VentaRepositorioEnMemoria : RepositorioEnMemoria<Venta>, IVe
             .OrderByDescending(v => v.FechaHora)
             .ToList();
     }
+
+    public async Task<IReadOnlyList<Venta>> ListarPorClienteAsync(
+        Guid clienteId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<Venta> todas = await ObtenerTodosAsync(cancellationToken);
+        return todas
+            .Where(v => v.ClienteId == clienteId)
+            .OrderByDescending(v => v.FechaHora)
+            .ToList();
+    }
 }
