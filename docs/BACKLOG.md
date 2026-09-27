@@ -74,10 +74,10 @@ Núcleo que permite rentar el software a múltiples veterinarias con aislamiento
 Ver detalle en `ROADMAP-SEGURIDAD-NOTIFICACIONES.md`.
 | ID | Historia | Estado |
 |----|----------|--------|
-| H9.1 | Login + JWT (tokens firmados) y hash seguro de contraseñas | ⬜ |
-| H9.2 | Roles predefinidos en backend + autorización por endpoint (`[Authorize]`) | ⬜ |
-| H9.3 | Rol SuperAdmin + endpoints de alta/baja de veterinarias (proteger POST /api/veterinarias) | ⬜ |
-| H9.4 | Control de suscripción: bloquear acceso a veterinarias desactivadas | ⬜ |
+| H9.1 | Login + JWT (tokens firmados) y hash seguro de contraseñas | ✅ |
+| H9.2 | Roles predefinidos en backend + autorización por endpoint (`[Authorize]`) | ✅ |
+| H9.3 | Rol SuperAdmin + endpoints de alta/baja de veterinarias (proteger POST /api/veterinarias) | ✅ |
+| H9.4 | Control de suscripción: bloquear acceso a veterinarias desactivadas | ✅ (en Login) |
 
 ## ÉPICA 10 — Rol Dueño de mascota + Notificaciones
 | ID | Historia | Estado |
