@@ -10,10 +10,12 @@ public sealed record ItemVentaComando(Guid ProductoId, int Cantidad);
 public sealed record RegistrarVentaComando(
     Guid VeterinariaId,
     Guid? ClienteId,
-    IReadOnlyList<ItemVentaComando> Items);
+    IReadOnlyList<ItemVentaComando> Items,
+    MetodoPago MetodoPago = MetodoPago.Efectivo,
+    decimal? MontoRecibido = null);
 
 /// <summary>Resultado de una venta registrada.</summary>
-public sealed record VentaResultado(Guid VentaId, decimal Total);
+public sealed record VentaResultado(Guid VentaId, decimal Total, decimal? Cambio);
 
 /// <summary>
 /// Caso de uso: registrar una venta (H6.2).
@@ -58,8 +60,10 @@ public sealed class RegistrarVenta
             descuentos.Add((producto, item.Cantidad));
         }
 
-        // Construir la venta (valida que haya líneas).
-        Result<Venta> ventaResult = Venta.Crear(comando.VeterinariaId, comando.ClienteId, lineas);
+        // Construir la venta (valida líneas y que el monto recibido cubra el total).
+        Result<Venta> ventaResult = Venta.Crear(
+            comando.VeterinariaId, comando.ClienteId, lineas,
+            comando.MetodoPago, comando.MontoRecibido);
         if (!ventaResult.EsExito)
             return Result<VentaResultado>.Falla(ventaResult.Error!);
 
@@ -73,6 +77,6 @@ public sealed class RegistrarVenta
         Venta venta = ventaResult.Valor!;
         await _ventas.AgregarAsync(venta, cancellationToken);
 
-        return Result<VentaResultado>.Exito(new VentaResultado(venta.Id, venta.Total));
+        return Result<VentaResultado>.Exito(new VentaResultado(venta.Id, venta.Total, venta.Cambio));
     }
 }

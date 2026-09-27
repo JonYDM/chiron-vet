@@ -26,13 +26,26 @@ public sealed class Venta : EntidadBase
     /// <summary>Total de la venta (suma de subtotales).</summary>
     public decimal Total { get; private set; }
 
-    private Venta(Guid veterinariaId, Guid? clienteId, List<LineaVenta> lineas)
+    /// <summary>Método de pago usado en la venta.</summary>
+    public MetodoPago MetodoPago { get; private set; }
+
+    /// <summary>Monto recibido del cliente (para calcular el vuelto en efectivo). Null si no aplica.</summary>
+    public decimal? MontoRecibido { get; private set; }
+
+    /// <summary>Cambio/vuelto entregado (MontoRecibido - Total), si aplica.</summary>
+    public decimal? Cambio { get; private set; }
+
+    private Venta(Guid veterinariaId, Guid? clienteId, List<LineaVenta> lineas,
+        MetodoPago metodoPago, decimal? montoRecibido)
     {
         VeterinariaId = veterinariaId;
         ClienteId = clienteId;
         _lineas = lineas;
         FechaHora = DateTime.UtcNow;
         Total = lineas.Sum(l => l.Subtotal);
+        MetodoPago = metodoPago;
+        MontoRecibido = montoRecibido;
+        Cambio = montoRecibido is { } recibido ? recibido - Total : null;
     }
 
     // Constructor privado sin parámetros para EF Core (materialización desde la BD).
@@ -45,7 +58,8 @@ public sealed class Venta : EntidadBase
     /// Crea una Venta validando que tenga al menos una línea.
     /// El descuento de stock se coordina en el caso de uso (capa de aplicación).
     /// </summary>
-    public static Result<Venta> Crear(Guid veterinariaId, Guid? clienteId, IEnumerable<LineaVenta> lineas)
+    public static Result<Venta> Crear(Guid veterinariaId, Guid? clienteId, IEnumerable<LineaVenta> lineas,
+        MetodoPago metodoPago = MetodoPago.Efectivo, decimal? montoRecibido = null)
     {
         if (veterinariaId == Guid.Empty)
             return Result<Venta>.Falla("La venta debe pertenecer a una veterinaria válida.");
@@ -54,6 +68,12 @@ public sealed class Venta : EntidadBase
         if (listaLineas.Count == 0)
             return Result<Venta>.Falla("La venta debe tener al menos un producto.");
 
-        return Result<Venta>.Exito(new Venta(veterinariaId, clienteId, listaLineas));
+        decimal total = listaLineas.Sum(l => l.Subtotal);
+
+        // Si se indica monto recibido (típico en efectivo), debe cubrir el total.
+        if (montoRecibido is { } recibido && recibido < total)
+            return Result<Venta>.Falla("El monto recibido no cubre el total de la venta.");
+
+        return Result<Venta>.Exito(new Venta(veterinariaId, clienteId, listaLineas, metodoPago, montoRecibido));
     }
 }
