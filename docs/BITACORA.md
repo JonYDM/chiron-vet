@@ -6,6 +6,32 @@
 
 ## Sesión 2 (cont.) — 2026-09-26
 
+### Bloque de entidades del núcleo (Épica 1.5 + H2.2) — ✅ COMPLETADO
+Rama: `feature/H1.5-nucleo-multitenant` (parte de H2.1).
+
+**GIRO DEL PRODUCTO documentado**: Chiron pasa a ser SaaS **multi-tenant** (cada veterinaria = tenant, datos aislados) con usuarios y roles.
+
+Entidades creadas en Domain:
+- `Veterinarias/Veterinaria.cs` (Tenant): Nombre, Telefono, Activa, FechaAlta. Métodos Activar/Desactivar (base para suscripción).
+- `Usuarios/RolUsuario.cs`: Administrador, Veterinario, Recepcionista.
+- `Usuarios/Usuario.cs`: VeterinariaId, Nombre, Correo (validado), Rol, Activo. SIN contraseña/login (eso va en Épica 8).
+- `Mascotas/EspecieMascota.cs`, `Mascotas/SexoMascota.cs`.
+- `Mascotas/Mascota.cs`: VeterinariaId + ClienteId (relación 1 Cliente → N Mascotas), Nombre, Especie, Raza, Sexo, FechaNacimiento. Método `EdadEnAnios()`.
+- `Clientes/Cliente.cs`: **modificado** — ahora requiere `VeterinariaId` (multi-tenant).
+
+Verificación (`dotnet run`): flujo completo Veterinaria → Usuario → Cliente → Mascota persiste y relaciona bien; edad de Firulais = 5 años; validaciones rechazan cliente sin tenant y mascota sin dueño.
+
+### Pendiente
+- H2.2b (registro rápido cliente+mascota), H2.3 (listar/buscar): próximas.
+- PRs a main los hace el usuario.
+
+### Siguiente paso
+- Continuar con casos de uso (Application) o más entidades según decida el usuario.
+
+---
+
+## Sesión 2 (cont.) — 2026-09-26
+
 ### [H2.1] Entidad Cliente con validaciones — ✅ COMPLETADA (inicia Épica 2)
 - Modelo de Cliente acordado con el usuario:
   - `Nombre` (obligatorio), `Telefono` (obligatorio, base WhatsApp).

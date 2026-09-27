@@ -16,11 +16,21 @@ Base del proyecto con Clean Architecture y DI.
 | H1.2 | Configurar inyección de dependencias en la app de consola | ✅ |
 | H1.3 | Crear contrato de repositorio genérico + repositorio base en memoria (intercambiable) | ✅ |
 
+## ÉPICA 1.5 — Fundación SaaS Multi-Tenant (GIRO DEL PRODUCTO)
+Núcleo que permite rentar el software a múltiples veterinarias con aislamiento de datos.
+
+| ID | Historia | Estado |
+|----|----------|--------|
+| H1.5.1 | Entidad Veterinaria (Tenant) — el inquilino que renta | ✅ |
+| H1.5.2 | Entidad Usuario + enum Rol (Administrador, Veterinario, Recepcionista), asociada a Veterinaria | ✅ |
+| H1.5.3 | Agregar `VeterinariaId` a entidades para aislamiento multi-tenant | ✅ (Cliente y Mascota) |
+
 ## ÉPICA 2 — Gestión de clientes y mascotas (el corazón)
 | ID | Historia | Estado |
 |----|----------|--------|
 | H2.1 | Registrar cliente (dueño) con validaciones | ✅ |
-| H2.2 | Registrar mascota asociada a un cliente | ⬜ |
+| H2.2 | Registrar mascota asociada a un cliente (relación 1 Cliente → N Mascotas) | ✅ |
+| H2.2b | Caso de uso "Registro rápido": alta de cliente + su primera mascota en una operación | ⬜ |
 | H2.3 | Listar y buscar clientes / mascotas | ⬜ |
 
 ## ÉPICA 3 — Expediente médico

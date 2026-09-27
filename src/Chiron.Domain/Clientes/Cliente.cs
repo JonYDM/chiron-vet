@@ -15,6 +15,9 @@ public sealed class Cliente : EntidadBase
     /// <summary>Longitud mínima aceptada para el teléfono (formato LATAM, típicamente 10 dígitos).</summary>
     private const int LongitudMinimaTelefono = 10;
 
+    /// <summary>Veterinaria (tenant) a la que pertenece el cliente. Aislamiento multi-tenant.</summary>
+    public Guid VeterinariaId { get; private set; }
+
     /// <summary>Nombre completo del cliente.</summary>
     public string Nombre { get; private set; }
 
@@ -28,8 +31,9 @@ public sealed class Cliente : EntidadBase
     public OrigenCliente Origen { get; private set; }
 
     // Constructor privado: fuerza el uso de la fábrica Crear para garantizar validez.
-    private Cliente(string nombre, string telefono, OrigenCliente origen)
+    private Cliente(Guid veterinariaId, string nombre, string telefono, OrigenCliente origen)
     {
+        VeterinariaId = veterinariaId;
         Nombre = nombre;
         Telefono = telefono;
         Origen = origen;
@@ -40,14 +44,19 @@ public sealed class Cliente : EntidadBase
     /// Crea un Cliente validando las reglas de negocio.
     /// Devuelve un Result: éxito con el Cliente, o falla con el motivo.
     /// </summary>
+    /// <param name="veterinariaId">Veterinaria (tenant) dueña del registro (obligatorio).</param>
     /// <param name="nombre">Nombre completo (obligatorio).</param>
     /// <param name="telefono">Teléfono (obligatorio, mínimo 10 dígitos).</param>
     /// <param name="origen">Canal de captación (opcional).</param>
     public static Result<Cliente> Crear(
+        Guid veterinariaId,
         string nombre,
         string telefono,
         OrigenCliente origen = OrigenCliente.NoEspecificado)
     {
+        if (veterinariaId == Guid.Empty)
+            return Result<Cliente>.Falla("El cliente debe pertenecer a una veterinaria válida.");
+
         if (string.IsNullOrWhiteSpace(nombre))
             return Result<Cliente>.Falla("El nombre del cliente es obligatorio.");
 
@@ -62,7 +71,7 @@ public sealed class Cliente : EntidadBase
                 $"El teléfono debe tener al menos {LongitudMinimaTelefono} dígitos.");
 
         // Se recorta el nombre para evitar espacios sobrantes al inicio/fin.
-        var cliente = new Cliente(nombre.Trim(), telefonoNormalizado, origen);
+        var cliente = new Cliente(veterinariaId, nombre.Trim(), telefonoNormalizado, origen);
         return Result<Cliente>.Exito(cliente);
     }
 
