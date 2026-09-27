@@ -267,6 +267,49 @@ app.MapPost("/api/usuarios/dueno", async (CrearDuenoDto dto, ClaimsPrincipal use
 })
 .WithName("CrearDueno").WithTags("Usuarios").RequireAuthorization(p => p.RequireRole(Administrador, Recepcionista));
 
+// Resetear el PIN de un usuario (recuperación de acceso).
+// - Administrador: resetea a su staff (Veterinario/Recepcionista) y dueños de SU veterinaria.
+// - SuperAdmin: resetea a Administradores.
+// El rol y la veterinaria del solicitante se toman del token (no del body).
+app.MapPost("/api/usuarios/{id:guid}/resetear-pin", async (Guid id, ResetearPinDto dto, ClaimsPrincipal user, ResetearPin uc) =>
+{
+    string? rolClaim = user.FindFirst(ClaimTypes.Role)?.Value ?? user.FindFirst("role")?.Value;
+    if (!Enum.TryParse<RolUsuario>(rolClaim, out RolUsuario solicitanteRol))
+        return Results.BadRequest(new { error = "Token sin rol válido." });
+
+    // La veterinaria del solicitante (vacía/ausente para SuperAdmin).
+    Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid solicitanteVet);
+
+    var comando = new ResetearPinComando(id, dto.NuevoPin, solicitanteRol, solicitanteVet);
+    return ToHttp(await uc.EjecutarAsync(comando));
+})
+.WithName("ResetearPin").WithTags("Usuarios").RequireAuthorization(p => p.RequireRole(Administrador, SuperAdmin));
+
+// El Administrador lista los usuarios (staff + dueños) de SU veterinaria.
+// El VeterinariaId se toma del token (aislamiento multi-tenant).
+app.MapGet("/api/usuarios/staff", async (ClaimsPrincipal user, ListarUsuariosDeVeterinaria uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+    return Results.Ok(await uc.EjecutarAsync(veterinariaId));
+})
+.WithName("ListarUsuariosStaff").WithTags("Usuarios").RequireAuthorization(p => p.RequireRole(Administrador));
+
+// El SuperAdmin lista todos los Administradores de veterinarias.
+app.MapGet("/api/admin/administradores", async (ListarAdministradores uc) =>
+    Results.Ok(await uc.EjecutarAsync()))
+.WithName("ListarAdministradores").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
+
+// Obtener el usuario (acceso al portal) de un cliente: indica si ya tiene acceso
+// y su usuarioId (para resetear su PIN). Devuelve 204 si el cliente no tiene acceso.
+app.MapGet("/api/clientes/{clienteId:guid}/usuario", async (Guid clienteId, ObtenerUsuarioDeCliente uc) =>
+{
+    UsuarioDto? dto = await uc.EjecutarAsync(clienteId);
+    return dto is null ? Results.NoContent() : Results.Ok(dto);
+})
+.WithName("UsuarioDeCliente").WithTags("Usuarios")
+.RequireAuthorization(p => p.RequireRole(Administrador, Recepcionista));
+
 // ═══════════════════ CLIENTES Y MASCOTAS (staff de la veterinaria) ═══════════════════
 app.MapPost("/api/registro-rapido", async (RegistrarClienteConMascotaComando cmd, RegistrarClienteConMascota uc) =>
     ToHttp(await uc.EjecutarAsync(cmd)))
@@ -392,3 +435,6 @@ record CrearStaffDto(string NombreUsuario, string Nombre, string Pin, RolUsuario
 
 // DTO para crear el acceso de un dueño de mascota (por su cliente).
 record CrearDuenoDto(Guid ClienteId, string Pin);
+
+// DTO para resetear el PIN de un usuario.
+record ResetearPinDto(string NuevoPin);
