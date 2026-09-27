@@ -6,6 +6,69 @@
 
 ## Sesión 2 (cont.) — 2026-09-26
 
+### 🎉 ÉPICA 4 (Citas) COMPLETADA — H4.1, H4.2
+Rama: `feature/H4-citas`.
+
+- **Domain**: `Citas/EstadoCita.cs` (Programada, Atendida, Cancelada, NoAsistio) y `Citas/Cita.cs` (VeterinariaId, MascotaId, FechaHora, Motivo, Estado). Valida fecha futura. Transiciones controladas: MarcarAtendida/Cancelar/MarcarNoAsistio solo desde Programada.
+- **Application**: `ICitaRepository` (agenda del día, próximas), casos de uso `AgendarCita` (H4.1) y `VerAgenda` (H4.2), comando `AgendarCitaComando`.
+- **Infrastructure**: `CitaRepositorioEnMemoria`.
+- **DI**: casos de uso Transient; repo Singleton.
+- Verificación (`dotnet run`): 2 citas agendadas; rechazo de cita en el pasado; próximas ordenadas; agenda del día filtra correcto.
+
+### Estado global del backend
+Épicas completadas: 1 (fundación), 1.5 (multi-tenant), 2 (clientes/mascotas), 3 (expediente), 4 (citas).
+Dominio + Aplicación + Infra (en memoria) funcionando y probados en consola.
+
+### Siguiente paso sugerido
+- Épica 5 (Recordatorios — usa FechaProximaAplicacion del expediente + citas próximas).
+- Épica 6 (Punto de venta).
+- Épica 8 (API REST) para conectar frontend.
+
+---
+
+## Sesión 2 (cont.) — 2026-09-26
+
+### 🎉 ÉPICA 3 (Expediente médico) COMPLETADA — H3.1, H3.2, H3.3
+Rama: `feature/H3-expediente-medico`.
+
+- **Domain**: `Expedientes/TipoRegistroMedico.cs` (Consulta, Vacuna, Desparasitacion, Cirugia, Otro) y `Expedientes/RegistroMedico.cs` (VeterinariaId, MascotaId, Tipo, Fecha, Descripcion, FechaProximaAplicacion). Método `TieneRecordatorioPendiente()`. Valida próxima aplicación > fecha atención.
+- **Application**: `IRegistroMedicoRepository` (ObtenerPorMascota, ObtenerProximasAplicaciones para recordatorios), casos de uso `AgregarRegistroMedico` (H3.1/H3.2) y `VerExpedienteMascota` (H3.3), comando `AgregarRegistroMedicoComando`.
+- **Infrastructure**: `RegistroMedicoRepositorioEnMemoria` (expediente ordenado desc por fecha; próximas aplicaciones filtradas por rango).
+- **DI**: casos de uso Transient; repo Singleton.
+- Verificación (`dotnet run`): consulta + vacuna (próx 2027-09-01) + desparasitación (próx 2026-12-01); rechazo de próxima anterior a la fecha; expediente con 3 registros.
+
+### Siguiente paso
+- Épica 4 (Citas).
+
+---
+
+## Sesión 2 (cont.) — 2026-09-26
+
+### Casos de uso de Application (H2.2b + H2.3) — ✅ COMPLETADO
+Rama: `feature/H2.2b-casos-uso` (parte de la rama del núcleo multi-tenant).
+
+Primera lógica de la **capa de Aplicación** (patrón caso de uso + comando):
+- **Contratos** (Application): `IClienteRepository`, `IMascotaRepository` (extienden IRepository<T> con consultas de negocio filtradas por tenant).
+- **Casos de uso**:
+  - `RegistrarClienteConMascota` (H2.2b, registro rápido): valida veterinaria activa → crea cliente → crea mascota asociada → persiste. Devuelve IDs.
+  - `BuscarClientes` (H2.3): por nombre (case-insensitive) o todos si texto vacío.
+  - `ListarMascotasDeCliente` (H2.3).
+  - Objetos: `RegistrarClienteConMascotaComando` (record), `RegistroRapidoResultado` (record).
+- **Implementaciones** (Infrastructure): `ClienteRepositorioEnMemoria`, `MascotaRepositorioEnMemoria` (heredan de RepositorioEnMemoria<T>).
+- **DI**: casos de uso como Transient en Application. En Infrastructure, los repos específicos como Singleton y `IRepository<T>` redirige a la MISMA instancia (consistencia de datos).
+
+Verificación (`dotnet run`): registro rápido de María+Firulais OK; búsqueda "maría" → 2 clientes; mascotas de María → Firulais (edad 5); rechazo de registro en veterinaria inexistente.
+
+### Estado
+- Épica 2 (clientes/mascotas) prácticamente completa a nivel dominio + aplicación.
+
+### Siguiente paso sugerido
+- Épica 4 (Citas) o Épica 3 (Expediente médico), o exponer API REST (Épica 8) para conectar frontend.
+
+---
+
+## Sesión 2 (cont.) — 2026-09-26
+
 ### Bloque de entidades del núcleo (Épica 1.5 + H2.2) — ✅ COMPLETADO
 Rama: `feature/H1.5-nucleo-multitenant` (parte de H2.1).
 

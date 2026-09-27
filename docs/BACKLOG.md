@@ -30,21 +30,21 @@ Núcleo que permite rentar el software a múltiples veterinarias con aislamiento
 |----|----------|--------|
 | H2.1 | Registrar cliente (dueño) con validaciones | ✅ |
 | H2.2 | Registrar mascota asociada a un cliente (relación 1 Cliente → N Mascotas) | ✅ |
-| H2.2b | Caso de uso "Registro rápido": alta de cliente + su primera mascota en una operación | ⬜ |
-| H2.3 | Listar y buscar clientes / mascotas | ⬜ |
+| H2.2b | Caso de uso "Registro rápido": alta de cliente + su primera mascota en una operación | ✅ |
+| H2.3 | Listar y buscar clientes / mascotas | ✅ |
 
 ## ÉPICA 3 — Expediente médico
 | ID | Historia | Estado |
 |----|----------|--------|
-| H3.1 | Registrar consulta médica en el historial de una mascota | ⬜ |
-| H3.2 | Registrar vacunas/desparasitaciones con fecha de próxima aplicación | ⬜ |
-| H3.3 | Ver expediente completo de una mascota | ⬜ |
+| H3.1 | Registrar consulta médica en el historial de una mascota | ✅ |
+| H3.2 | Registrar vacunas/desparasitaciones con fecha de próxima aplicación | ✅ |
+| H3.3 | Ver expediente completo de una mascota | ✅ |
 
 ## ÉPICA 4 — Citas
 | ID | Historia | Estado |
 |----|----------|--------|
-| H4.1 | Agendar cita para una mascota | ⬜ |
-| H4.2 | Ver agenda del día / próximas citas | ⬜ |
+| H4.1 | Agendar cita para una mascota | ✅ |
+| H4.2 | Ver agenda del día / próximas citas | ✅ |
 
 ## ÉPICA 5 — Recordatorios (diferenciador)
 | ID | Historia | Estado |

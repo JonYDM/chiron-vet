@@ -1,3 +1,7 @@
+using Chiron.Application.Citas;
+using Chiron.Application.Clientes;
+using Chiron.Application.Expedientes;
+using Chiron.Application.Mascotas;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Chiron.Application;
@@ -5,18 +9,25 @@ namespace Chiron.Application;
 /// <summary>
 /// Punto único de registro de dependencias de la capa de Aplicación.
 /// Cada capa es responsable de registrar sus propios servicios (SOLID: SRP).
-/// La capa de arranque (ConsoleApp/API) solo llama a este método,
-/// sin conocer los detalles internos de Application.
 /// </summary>
 public static class DependencyInjection
 {
     /// <summary>
-    /// Registra los servicios de la capa de Aplicación (casos de uso, etc.).
-    /// Por ahora no hay servicios; se irán agregando en las siguientes historias.
+    /// Registra los casos de uso de la capa de Aplicación.
+    /// Se registran como Transient: son operaciones sin estado, se crea una por uso.
     /// </summary>
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        // Aquí se registrarán los casos de uso (ej: RegistrarCliente) en próximas historias.
+        services.AddTransient<RegistrarClienteConMascota>();
+        services.AddTransient<BuscarClientes>();
+        services.AddTransient<ListarMascotasDeCliente>();
+
+        services.AddTransient<AgregarRegistroMedico>();
+        services.AddTransient<VerExpedienteMascota>();
+
+        services.AddTransient<AgendarCita>();
+        services.AddTransient<VerAgenda>();
+
         return services;
     }
 }

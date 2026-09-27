@@ -1,9 +1,11 @@
 using Chiron.Application;
+using Chiron.Application.Citas;
+using Chiron.Application.Clientes;
 using Chiron.Application.Common;
+using Chiron.Domain.Citas;
 using Chiron.Domain.Clientes;
 using Chiron.Domain.Common;
 using Chiron.Domain.Mascotas;
-using Chiron.Domain.Usuarios;
 using Chiron.Domain.Veterinarias;
 using Chiron.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,8 +13,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Chiron.ConsoleApp — Punto de entrada y composición de la aplicación.
-// Demuestra el modelo multi-tenant: Veterinaria → Usuario / Cliente → Mascota.
+// Chiron.ConsoleApp — Demostración: registro rápido + agenda de citas.
 // ─────────────────────────────────────────────────────────────────────────────
 
 using IHost host = Host.CreateDefaultBuilder(args)
@@ -24,60 +25,47 @@ using IHost host = Host.CreateDefaultBuilder(args)
     .Build();
 
 ILogger<Program> logger = host.Services.GetRequiredService<ILogger<Program>>();
-logger.LogInformation("🐾 Chiron — Sistema de gestión para veterinarias");
+logger.LogInformation("🐾 Chiron — Agenda de citas");
 
-// Repositorios resueltos por DI (uno por tipo de entidad).
+// Escenario: veterinaria + María con Firulais.
 IRepository<Veterinaria> veterinarias = host.Services.GetRequiredService<IRepository<Veterinaria>>();
-IRepository<Usuario> usuarios = host.Services.GetRequiredService<IRepository<Usuario>>();
-IRepository<Cliente> clientes = host.Services.GetRequiredService<IRepository<Cliente>>();
-IRepository<Mascota> mascotas = host.Services.GetRequiredService<IRepository<Mascota>>();
-
-// ── 1. Alta de la veterinaria (tenant) ──
-Result<Veterinaria> rVet = Veterinaria.Crear("Veterinaria San Francisco", "7771112233");
-if (!rVet.EsExito) { logger.LogError(rVet.Error); return; }
-Veterinaria vet = rVet.Valor!;
+Veterinaria vet = Veterinaria.Crear("Veterinaria San Francisco", "7771112233").Valor!;
 await veterinarias.AgregarAsync(vet);
-logger.LogInformation("🏥 Veterinaria dada de alta: {Nombre} (Id {Id})", vet.Nombre, vet.Id);
 
-// ── 2. Usuario administrador de esa veterinaria ──
-Result<Usuario> rUser = Usuario.Crear(vet.Id, "Dra. Ana López", "ana@sanfrancisco.mx", RolUsuario.Administrador);
-if (rUser.EsExito)
-{
-    await usuarios.AgregarAsync(rUser.Valor!);
-    logger.LogInformation("👤 Usuario creado: {Nombre} | Rol: {Rol}", rUser.Valor!.Nombre, rUser.Valor.Rol);
-}
+var registroRapido = host.Services.GetRequiredService<RegistrarClienteConMascota>();
+Result<RegistroRapidoResultado> alta = await registroRapido.EjecutarAsync(new RegistrarClienteConMascotaComando(
+    vet.Id, "María González", "7771234567", OrigenCliente.Recomendacion,
+    "Firulais", EspecieMascota.Perro));
+Guid mascotaId = alta.Valor!.MascotaId;
 
-// ── 3. Cliente (dueño) de esa veterinaria ──
-Result<Cliente> rCli = Cliente.Crear(vet.Id, "María González", "777-123-4567", OrigenCliente.Recomendacion);
-if (!rCli.EsExito) { logger.LogError(rCli.Error); return; }
-Cliente cliente = rCli.Valor!;
-await clientes.AgregarAsync(cliente);
-logger.LogInformation("🧑 Cliente registrado: {Nombre} | Tel: {Tel}", cliente.Nombre, cliente.Telefono);
+var agendarCita = host.Services.GetRequiredService<AgendarCita>();
 
-// ── 4. Mascota (paciente) asociada al cliente ──
-Result<Mascota> rMas = Mascota.Crear(
-    vet.Id, cliente.Id, "Firulais", EspecieMascota.Perro, SexoMascota.Macho,
-    raza: "Labrador", fechaNacimiento: new DateOnly(2021, 5, 10));
-if (rMas.EsExito)
-{
-    await mascotas.AgregarAsync(rMas.Valor!);
-    Mascota m = rMas.Valor!;
-    logger.LogInformation("🐕 Mascota registrada: {Nombre} | {Especie} {Raza} | Edad: {Edad} años | Dueño: {ClienteId}",
-        m.Nombre, m.Especie, m.Raza, m.EdadEnAnios(), m.ClienteId);
-}
+// ── H4.1: agendar citas ──
+DateTime manana10 = DateTime.UtcNow.Date.AddDays(1).AddHours(10);
+Result<Guid> cita1 = await agendarCita.EjecutarAsync(
+    new AgendarCitaComando(vet.Id, mascotaId, manana10, "Vacunación anual"));
+logger.LogInformation(cita1.EsExito ? "✅ Cita agendada para mañana 10:00" : $"⛔ {cita1.Error}");
 
-// ── 5. Casos inválidos (validaciones) ──
-Result<Cliente> sinVet = Cliente.Crear(Guid.Empty, "Sin Tenant", "7771234567");
-if (!sinVet.EsExito) logger.LogWarning("⛔ Rechazado (esperado): {Error}", sinVet.Error);
+DateTime pasadoManana16 = DateTime.UtcNow.Date.AddDays(2).AddHours(16);
+await agendarCita.EjecutarAsync(
+    new AgendarCitaComando(vet.Id, mascotaId, pasadoManana16, "Revisión de rutina"));
 
-Result<Mascota> masSinDueno = Mascota.Crear(vet.Id, Guid.Empty, "Michi", EspecieMascota.Gato);
-if (!masSinDueno.EsExito) logger.LogWarning("⛔ Rechazado (esperado): {Error}", masSinDueno.Error);
+// ── Validación: cita en el pasado (debe fallar) ──
+Result<Guid> pasada = await agendarCita.EjecutarAsync(
+    new AgendarCitaComando(vet.Id, mascotaId, DateTime.UtcNow.AddHours(-2), "Cita en el pasado"));
+if (!pasada.EsExito)
+    logger.LogWarning("⛔ Rechazado (esperado): {Error}", pasada.Error);
 
-// ── Resumen ──
-logger.LogInformation("Resumen → Veterinarias: {V} | Usuarios: {U} | Clientes: {C} | Mascotas: {M}",
-    (await veterinarias.ObtenerTodosAsync()).Count,
-    (await usuarios.ObtenerTodosAsync()).Count,
-    (await clientes.ObtenerTodosAsync()).Count,
-    (await mascotas.ObtenerTodosAsync()).Count);
+// ── H4.2: ver próximas citas ──
+var verAgenda = host.Services.GetRequiredService<VerAgenda>();
+IReadOnlyList<Cita> proximas = await verAgenda.ProximasAsync(vet.Id);
+logger.LogInformation("📅 Próximas citas programadas: {Total}", proximas.Count);
+foreach (Cita c in proximas)
+    logger.LogInformation("   • {Fecha:yyyy-MM-dd HH:mm} — {Motivo} [{Estado}]", c.FechaHora, c.Motivo, c.Estado);
+
+// ── H4.2: agenda de mañana ──
+DateOnly manana = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(1));
+IReadOnlyList<Cita> agendaManana = await verAgenda.DelDiaAsync(vet.Id, manana);
+logger.LogInformation("📅 Agenda de mañana ({Dia}): {Total} cita(s)", manana, agendaManana.Count);
 
 await host.StopAsync();
