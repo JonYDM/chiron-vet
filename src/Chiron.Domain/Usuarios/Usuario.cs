@@ -3,74 +3,154 @@ using Chiron.Domain.Common;
 namespace Chiron.Domain.Usuarios;
 
 /// <summary>
-/// Usuario que opera el sistema dentro de una veterinaria (tenant).
-/// Pertenece a una Veterinaria (VeterinariaId) y tiene un Rol que define sus permisos.
+/// Usuario que accede al sistema. Autenticación con identificador + PIN (sin correo):
+///  - Staff (Administrador/Veterinario/Recepcionista): identificador = nombre de usuario.
+///  - Dueño de mascota: identificador = su teléfono.
+///  - SuperAdmin: nombre de usuario.
 ///
-/// NOTA: aquí NO se maneja la contraseña ni la autenticación. Eso se implementará
-/// de forma segura junto con la API/login (Épica 8). Esta entidad modela la identidad
-/// y el rol del usuario, no el mecanismo de acceso.
+/// El PIN se almacena SIEMPRE como hash (BCrypt); nunca en claro. Se incluye bloqueo
+/// temporal tras varios intentos fallidos (los PIN son cortos, hay que protegerlos).
 /// </summary>
 public sealed class Usuario : EntidadBase
 {
-    /// <summary>Veterinaria (tenant) a la que pertenece el usuario.</summary>
+    /// <summary>Máximo de intentos fallidos antes de bloquear.</summary>
+    public const int MaxIntentosFallidos = 5;
+
+    /// <summary>Minutos de bloqueo tras exceder los intentos.</summary>
+    public const int MinutosBloqueo = 5;
+
+    /// <summary>Veterinaria (tenant). Guid.Empty para SuperAdmin.</summary>
     public Guid VeterinariaId { get; private set; }
 
-    /// <summary>Nombre completo del usuario.</summary>
+    /// <summary>
+    /// Identificador de acceso: nombre de usuario (staff) o teléfono (dueño de mascota).
+    /// Único a nivel global. Se normaliza a minúsculas/sin espacios.
+    /// </summary>
+    public string NombreUsuario { get; private set; }
+
+    /// <summary>Nombre para mostrar del usuario.</summary>
     public string Nombre { get; private set; }
 
-    /// <summary>Correo del usuario (identificador de acceso futuro).</summary>
-    public string Correo { get; private set; }
+    /// <summary>Hash del PIN (nunca el PIN en claro).</summary>
+    public string HashPin { get; private set; }
 
-    /// <summary>Rol del usuario dentro de la veterinaria.</summary>
+    /// <summary>Rol del usuario.</summary>
     public RolUsuario Rol { get; private set; }
+
+    /// <summary>
+    /// Cliente (dueño) al que corresponde este usuario, cuando el rol es DuenoMascota.
+    /// Null para el staff. Permite que el dueño vea solo SUS mascotas.
+    /// </summary>
+    public Guid? ClienteId { get; private set; }
 
     /// <summary>Indica si el usuario está activo.</summary>
     public bool Activo { get; private set; }
 
-    private Usuario(Guid veterinariaId, string nombre, string correo, RolUsuario rol)
+    /// <summary>Contador de intentos fallidos consecutivos.</summary>
+    public int IntentosFallidos { get; private set; }
+
+    /// <summary>Momento (UTC) hasta el cual el usuario está bloqueado, si aplica.</summary>
+    public DateTime? BloqueadoHasta { get; private set; }
+
+    private Usuario(Guid veterinariaId, string nombreUsuario, string nombre, string hashPin, RolUsuario rol, Guid? clienteId)
     {
         VeterinariaId = veterinariaId;
+        NombreUsuario = nombreUsuario;
         Nombre = nombre;
-        Correo = correo;
+        HashPin = hashPin;
         Rol = rol;
+        ClienteId = clienteId;
         Activo = true;
     }
 
+    // Constructor privado sin parámetros para EF Core.
+    private Usuario()
+    {
+        NombreUsuario = string.Empty;
+        Nombre = string.Empty;
+        HashPin = string.Empty;
+    }
+
     /// <summary>
-    /// Crea un Usuario validando las reglas de negocio.
+    /// Crea un usuario de staff (o SuperAdmin) con nombre de usuario y PIN (ya hasheado).
     /// </summary>
-    public static Result<Usuario> Crear(Guid veterinariaId, string nombre, string correo, RolUsuario rol)
+    public static Result<Usuario> CrearStaff(
+        Guid veterinariaId, string nombreUsuario, string nombre, string hashPin, RolUsuario rol)
+    {
+        if (rol == RolUsuario.DuenoMascota)
+            return Result<Usuario>.Falla("Use CrearDueno para usuarios dueños de mascota.");
+        if (rol != RolUsuario.SuperAdmin && veterinariaId == Guid.Empty)
+            return Result<Usuario>.Falla("El usuario debe pertenecer a una veterinaria válida.");
+
+        return CrearInterno(veterinariaId, nombreUsuario, nombre, hashPin, rol, clienteId: null);
+    }
+
+    /// <summary>
+    /// Crea un usuario dueño de mascota: identificador = teléfono, ligado a su Cliente.
+    /// </summary>
+    public static Result<Usuario> CrearDueno(
+        Guid veterinariaId, Guid clienteId, string telefono, string nombre, string hashPin)
     {
         if (veterinariaId == Guid.Empty)
             return Result<Usuario>.Falla("El usuario debe pertenecer a una veterinaria válida.");
+        if (clienteId == Guid.Empty)
+            return Result<Usuario>.Falla("El dueño debe estar ligado a un cliente válido.");
 
+        return CrearInterno(veterinariaId, telefono, nombre, hashPin, RolUsuario.DuenoMascota, clienteId);
+    }
+
+    private static Result<Usuario> CrearInterno(
+        Guid veterinariaId, string identificador, string nombre, string hashPin, RolUsuario rol, Guid? clienteId)
+    {
+        if (string.IsNullOrWhiteSpace(identificador))
+            return Result<Usuario>.Falla("El identificador de usuario es obligatorio.");
         if (string.IsNullOrWhiteSpace(nombre))
-            return Result<Usuario>.Falla("El nombre del usuario es obligatorio.");
+            return Result<Usuario>.Falla("El nombre es obligatorio.");
+        if (string.IsNullOrWhiteSpace(hashPin))
+            return Result<Usuario>.Falla("El PIN es obligatorio.");
 
-        if (string.IsNullOrWhiteSpace(correo) || !EsCorreoValido(correo))
-            return Result<Usuario>.Falla("El correo del usuario no es válido.");
-
-        var usuario = new Usuario(veterinariaId, nombre.Trim(), correo.Trim().ToLowerInvariant(), rol);
+        string idNormalizado = NormalizarIdentificador(identificador);
+        var usuario = new Usuario(veterinariaId, idNormalizado, nombre.Trim(), hashPin, rol, clienteId);
         return Result<Usuario>.Exito(usuario);
     }
 
-    /// <summary>Desactiva el usuario (ej: baja de un empleado).</summary>
-    public void Desactivar() => Activo = false;
+    /// <summary>Indica si el usuario está bloqueado en este momento.</summary>
+    public bool EstaBloqueado() => BloqueadoHasta is { } hasta && hasta > DateTime.UtcNow;
 
     /// <summary>
-    /// Validación mínima de correo: contiene una '@' con texto antes y después,
-    /// y un '.' en el dominio. Suficiente y eficiente para una regla de dominio;
-    /// la validación estricta de formato se hará en la capa de entrada (API).
+    /// Registra un intento fallido de login. Bloquea temporalmente al alcanzar el máximo.
     /// </summary>
-    private static bool EsCorreoValido(string correo)
+    public void RegistrarIntentoFallido()
     {
-        int posArroba = correo.IndexOf('@');
-        // Debe haber al menos un carácter antes de '@'.
-        if (posArroba <= 0)
-            return false;
-
-        // Debe haber un '.' después de la '@' (dominio), sin quedar al final.
-        int posPunto = correo.IndexOf('.', posArroba);
-        return posPunto > posArroba + 1 && posPunto < correo.Length - 1;
+        IntentosFallidos++;
+        if (IntentosFallidos >= MaxIntentosFallidos)
+        {
+            BloqueadoHasta = DateTime.UtcNow.AddMinutes(MinutosBloqueo);
+            IntentosFallidos = 0;
+        }
     }
+
+    /// <summary>Reinicia los contadores tras un login exitoso.</summary>
+    public void RegistrarLoginExitoso()
+    {
+        IntentosFallidos = 0;
+        BloqueadoHasta = null;
+    }
+
+    /// <summary>Desactiva el usuario.</summary>
+    public void Desactivar() => Activo = false;
+
+    /// <summary>Reactiva el usuario.</summary>
+    public void Activar() => Activo = true;
+
+    /// <summary>Actualiza el hash del PIN (cambio de PIN).</summary>
+    public void CambiarHashPin(string nuevoHash)
+    {
+        if (!string.IsNullOrWhiteSpace(nuevoHash))
+            HashPin = nuevoHash;
+    }
+
+    /// <summary>Normaliza el identificador: minúsculas y sin espacios alrededor.</summary>
+    public static string NormalizarIdentificador(string identificador)
+        => identificador.Trim().ToLowerInvariant();
 }

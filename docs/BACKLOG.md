@@ -74,17 +74,20 @@ Núcleo que permite rentar el software a múltiples veterinarias con aislamiento
 Ver detalle en `ROADMAP-SEGURIDAD-NOTIFICACIONES.md`.
 | ID | Historia | Estado |
 |----|----------|--------|
-| H9.1 | Login + JWT (tokens firmados) y hash seguro de contraseñas | ⬜ |
-| H9.2 | Roles predefinidos en backend + autorización por endpoint (`[Authorize]`) | ⬜ |
-| H9.3 | Rol SuperAdmin + endpoints de alta/baja de veterinarias (proteger POST /api/veterinarias) | ⬜ |
-| H9.4 | Control de suscripción: bloquear acceso a veterinarias desactivadas | ⬜ |
+| H9.1 | Login + JWT (tokens firmados) y hash seguro de contraseñas | ✅ |
+| H9.2 | Roles predefinidos en backend + autorización por endpoint (`[Authorize]`) | ✅ |
+| H9.3 | Rol SuperAdmin + endpoints de alta/baja de veterinarias (proteger POST /api/veterinarias) | ✅ |
+| H9.4 | Control de suscripción: bloquear acceso a veterinarias desactivadas | ✅ (en Login) |
 
 ## ÉPICA 10 — Rol Dueño de mascota + Notificaciones
 | ID | Historia | Estado |
 |----|----------|--------|
-| H10.1 | Rol Dueño de mascota (acceso limitado a sus mascotas e historial) | ⬜ |
-| H10.2 | Recordatorios in-app (reusa lógica de detección de Épica 5) | ⬜ |
-| H10.3 | Notificaciones push web (gratis, sin fricción de Meta) | ⬜ |
+| H10.1 | Rol Dueño de mascota (acceso limitado a sus mascotas e historial) | ✅ |
+| H10.2 | Recordatorios in-app (reusa lógica de detección de Épica 5) | ✅ |
+| H10.3 | Notificaciones push web (gratis, sin fricción de Meta) | ⬜ (depende del frontend) |
+
+> **Nota de autenticación (cambio en H9.1)**: se usa **identificador + PIN de 6 dígitos** (sin correo):
+> staff → nombre de usuario; dueño de mascota → su teléfono. PIN hasheado con BCrypt + bloqueo tras 5 intentos fallidos.
 
 ## FUTURO / Bajo demanda
 | ID | Historia | Estado |

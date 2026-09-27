@@ -4,6 +4,7 @@ using Chiron.Application.Expedientes;
 using Chiron.Application.Mascotas;
 using Chiron.Application.PuntoVenta;
 using Chiron.Application.Recordatorios;
+using Chiron.Application.Seguridad;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Chiron.Application;
@@ -36,6 +37,8 @@ public static class DependencyInjection
         services.AddTransient<AgregarProducto>();
         services.AddTransient<ListarCatalogo>();
         services.AddTransient<RegistrarVenta>();
+
+        services.AddTransient<Login>();
 
         return services;
     }
