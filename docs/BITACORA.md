@@ -6,6 +6,26 @@
 
 ## Sesión 2 (cont.) — 2026-09-26
 
+### 🎉 ÉPICA 6 (Punto de venta) COMPLETADA — H6.1, H6.2
+Rama: `feature/H6-punto-venta`.
+
+- **Domain** (namespace PuntoVenta): `CategoriaProducto` (Alimento, Medicina, Accesorio, Higiene, Otro), `Producto` (precio decimal, stock, DescontarStock/Reabastecer/CambiarPrecio con validaciones), `LineaVenta` (guarda precio del momento, Subtotal calculado), `Venta` (agrupa líneas, calcula Total, ClienteId opcional para venta de mostrador).
+- **Application**: `IProductoRepository`, `IVentaRepository`; casos de uso `AgregarProducto`, `ListarCatalogo` (H6.1), `RegistrarVenta` (H6.2) que valida existencia/stock, construye líneas con precio del momento, descuenta stock y persiste.
+- **Infrastructure**: `ProductoRepositorioEnMemoria`, `VentaRepositorioEnMemoria`.
+- **DI**: casos de uso Transient; repos Singleton.
+- Verificación (`dotnet run`): catálogo cargado; precio 0 rechazado; venta 2 croquetas + 1 antipulgas = $1080; stock 20→18 y 5→4; venta de 100 antipulgas rechazada por stock.
+
+### Estado global
+Épicas completadas: 1, 1.5, 2, 3, 4, 5, 6. Falta: 7 (PostgreSQL/Docker/Railway), 8 (API/frontend/WhatsApp real).
+**Todo el modelo de negocio del backend está completo y probado.**
+
+### Siguiente paso
+- Épica 8 (API REST) para exponer todo por HTTP y conectar frontend, o Épica 7 (PostgreSQL + Docker + Railway).
+
+---
+
+## Sesión 2 (cont.) — 2026-09-26
+
 ### 🎉 ÉPICA 5 (Recordatorios — DIFERENCIADOR) COMPLETADA — H5.1, H5.2
 Rama: `feature/H5-recordatorios`. Incluye doc `INTEGRACION-WHATSAPP.md`.
 

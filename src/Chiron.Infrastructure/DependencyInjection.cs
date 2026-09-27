@@ -3,6 +3,7 @@ using Chiron.Application.Clientes;
 using Chiron.Application.Common;
 using Chiron.Application.Expedientes;
 using Chiron.Application.Mascotas;
+using Chiron.Application.PuntoVenta;
 using Chiron.Application.Recordatorios;
 using Chiron.Domain.Clientes;
 using Chiron.Domain.Mascotas;
@@ -42,6 +43,12 @@ public static class DependencyInjection
 
         services.AddSingleton<CitaRepositorioEnMemoria>();
         services.AddSingleton<ICitaRepository>(sp => sp.GetRequiredService<CitaRepositorioEnMemoria>());
+
+        services.AddSingleton<ProductoRepositorioEnMemoria>();
+        services.AddSingleton<IProductoRepository>(sp => sp.GetRequiredService<ProductoRepositorioEnMemoria>());
+
+        services.AddSingleton<VentaRepositorioEnMemoria>();
+        services.AddSingleton<IVentaRepository>(sp => sp.GetRequiredService<VentaRepositorioEnMemoria>());
 
         // Servicio de mensajería: implementación de PRUEBA (log). Se sustituirá por la
         // implementación real de WhatsApp Cloud API sin cambiar la lógica de negocio.
