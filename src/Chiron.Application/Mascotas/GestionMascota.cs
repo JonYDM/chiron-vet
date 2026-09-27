@@ -92,3 +92,27 @@ public sealed class EditarMascota
         return Result<bool>.Exito(true);
     }
 }
+
+/// <summary>Caso de uso: activar o desactivar (baja lógica) una mascota.</summary>
+public sealed class CambiarEstadoMascota
+{
+    private readonly IMascotaRepository _mascotas;
+
+    public CambiarEstadoMascota(IMascotaRepository mascotas) => _mascotas = mascotas;
+
+    public async Task<Result<bool>> EjecutarAsync(
+        Guid mascotaId, Guid veterinariaId, bool activar, CancellationToken cancellationToken = default)
+    {
+        Mascota? mascota = await _mascotas.ObtenerPorIdAsync(mascotaId, cancellationToken);
+        if (mascota is null)
+            return Result<bool>.Falla("La mascota no existe.");
+        if (mascota.VeterinariaId != veterinariaId)
+            return Result<bool>.Falla("La mascota no pertenece a tu veterinaria.");
+
+        if (activar) mascota.Activar();
+        else mascota.Desactivar();
+
+        await _mascotas.ActualizarAsync(mascota, cancellationToken);
+        return Result<bool>.Exito(true);
+    }
+}

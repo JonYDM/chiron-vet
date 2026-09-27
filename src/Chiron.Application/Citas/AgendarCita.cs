@@ -12,7 +12,8 @@ public sealed record AgendarCitaComando(
     Guid VeterinariaId,
     Guid MascotaId,
     DateTime FechaHora,
-    string Motivo);
+    string Motivo,
+    Guid? VeterinarioId = null);
 
 /// <summary>
 /// Caso de uso: agendar una cita para una mascota (H4.1).
@@ -39,7 +40,7 @@ public sealed class AgendarCita
             return Result<Guid>.Falla("La mascota no pertenece a la veterinaria indicada.");
 
         Result<Cita> citaResult = Cita.Crear(
-            comando.VeterinariaId, comando.MascotaId, comando.FechaHora, comando.Motivo);
+            comando.VeterinariaId, comando.MascotaId, comando.FechaHora, comando.Motivo, comando.VeterinarioId);
         if (!citaResult.EsExito)
             return Result<Guid>.Falla(citaResult.Error!);
 

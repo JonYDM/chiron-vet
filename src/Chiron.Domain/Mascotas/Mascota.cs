@@ -40,6 +40,9 @@ public sealed class Mascota : EntidadBase
     /// <summary>Indica si la mascota está esterilizada (opcional/desconocido = null).</summary>
     public bool? Esterilizado { get; private set; }
 
+    /// <summary>Indica si la mascota está activa (baja lógica; preserva su expediente).</summary>
+    public bool Activo { get; private set; }
+
     private Mascota(
         Guid veterinariaId,
         Guid clienteId,
@@ -62,6 +65,7 @@ public sealed class Mascota : EntidadBase
         PesoKg = pesoKg;
         Padecimientos = padecimientos;
         Esterilizado = esterilizado;
+        Activo = true;
     }
 
     /// <summary>
@@ -153,4 +157,10 @@ public sealed class Mascota : EntidadBase
 
         return edad;
     }
+
+    /// <summary>Da de baja lógica a la mascota (preserva su expediente médico).</summary>
+    public void Desactivar() => Activo = false;
+
+    /// <summary>Reactiva una mascota dada de baja.</summary>
+    public void Activar() => Activo = true;
 }

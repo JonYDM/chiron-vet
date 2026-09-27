@@ -1,10 +1,12 @@
+using Chiron.Application.Common;
 using Chiron.Domain.Clientes;
 
 namespace Chiron.Application.Clientes;
 
 /// <summary>
-/// Caso de uso: buscar clientes de una veterinaria por texto en el nombre.
-/// Si el texto viene vacío, devuelve todos los clientes de la veterinaria.
+/// Caso de uso: buscar/listar clientes de una veterinaria con búsqueda por texto,
+/// filtro de estado (activos/inactivos/todos) y paginación. Todo el procesamiento
+/// (filtrado, búsqueda, corte de página) se hace en el servidor.
 /// </summary>
 public sealed class BuscarClientes
 {
@@ -12,13 +14,24 @@ public sealed class BuscarClientes
 
     public BuscarClientes(IClienteRepository clientes) => _clientes = clientes;
 
-    public async Task<IReadOnlyList<Cliente>> EjecutarAsync(
-        Guid veterinariaId, string? texto, CancellationToken cancellationToken = default)
+    /// <summary>Versión paginada con filtro de estado.</summary>
+    public async Task<ResultadoPaginado<Cliente>> EjecutarAsync(
+        Guid veterinariaId,
+        string? texto,
+        FiltroEstado estado,
+        int pagina,
+        int tamanoPagina,
+        CancellationToken cancellationToken = default)
     {
-        // Sin filtro: listar todos los de la veterinaria.
-        if (string.IsNullOrWhiteSpace(texto))
-            return await _clientes.ListarPorVeterinariaAsync(veterinariaId, cancellationToken);
+        IReadOnlyList<Cliente> baseLista = string.IsNullOrWhiteSpace(texto)
+            ? await _clientes.ListarPorVeterinariaAsync(veterinariaId, cancellationToken)
+            : await _clientes.BuscarPorNombreAsync(veterinariaId, texto.Trim(), cancellationToken);
 
-        return await _clientes.BuscarPorNombreAsync(veterinariaId, texto.Trim(), cancellationToken);
+        var filtrados = baseLista
+            .AplicarFiltro(estado, c => c.Activo)
+            .OrderBy(c => c.Nombre)
+            .ToList();
+
+        return ResultadoPaginado<Cliente>.Crear(filtrados, pagina, tamanoPagina);
     }
 }

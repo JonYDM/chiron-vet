@@ -16,6 +16,9 @@ public sealed record VentaDto(
     Guid? ClienteId,
     DateTime FechaHora,
     decimal Total,
+    MetodoPago MetodoPago,
+    decimal? MontoRecibido,
+    decimal? Cambio,
     IReadOnlyList<LineaVentaDto> Lineas)
 {
     public static VentaDto Desde(Venta v) => new(
@@ -23,6 +26,9 @@ public sealed record VentaDto(
         v.ClienteId,
         v.FechaHora,
         v.Total,
+        v.MetodoPago,
+        v.MontoRecibido,
+        v.Cambio,
         v.Lineas.Select(l => new LineaVentaDto(
             l.ProductoId, l.NombreProducto, l.Cantidad, l.PrecioUnitario, l.Subtotal)).ToList());
 }
@@ -60,5 +66,42 @@ public sealed class ListarVentasDeCliente
     {
         IReadOnlyList<Venta> ventas = await _ventas.ListarPorClienteAsync(clienteId, cancellationToken);
         return ventas.Select(VentaDto.Desde).ToList();
+    }
+}
+
+/// <summary>Resumen de ventas de un período: total, conteo y desglose por método de pago.</summary>
+public sealed record ResumenVentasDto(
+    decimal Total,
+    int NumeroVentas,
+    decimal Efectivo,
+    decimal Tarjeta,
+    decimal Transferencia);
+
+/// <summary>
+/// Caso de uso: resumen de ventas de una veterinaria en un rango de fechas. El cálculo
+/// (totales y desglose) se hace en el servidor, no en el cliente.
+/// </summary>
+public sealed class ResumenVentas
+{
+    private readonly IVentaRepository _ventas;
+
+    public ResumenVentas(IVentaRepository ventas) => _ventas = ventas;
+
+    public async Task<ResumenVentasDto> EjecutarAsync(
+        Guid veterinariaId, DateTime? desde, DateTime? hasta, CancellationToken cancellationToken = default)
+    {
+        DateTime hastaReal = hasta ?? DateTime.UtcNow;
+        DateTime desdeReal = desde ?? hastaReal.AddDays(-30);
+        IReadOnlyList<Venta> ventas = await _ventas.ListarPorVeterinariaAsync(
+            veterinariaId, desdeReal, hastaReal, cancellationToken);
+
+        decimal PorMetodo(MetodoPago m) => ventas.Where(v => v.MetodoPago == m).Sum(v => v.Total);
+
+        return new ResumenVentasDto(
+            Total: ventas.Sum(v => v.Total),
+            NumeroVentas: ventas.Count,
+            Efectivo: PorMetodo(MetodoPago.Efectivo),
+            Tarjeta: PorMetodo(MetodoPago.Tarjeta),
+            Transferencia: PorMetodo(MetodoPago.Transferencia));
     }
 }

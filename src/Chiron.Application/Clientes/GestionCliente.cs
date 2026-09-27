@@ -78,3 +78,29 @@ public sealed class EditarCliente
         return Result<bool>.Exito(true);
     }
 }
+
+/// <summary>
+/// Caso de uso: activar o desactivar (baja lógica) un cliente.
+/// </summary>
+public sealed class CambiarEstadoCliente
+{
+    private readonly IClienteRepository _clientes;
+
+    public CambiarEstadoCliente(IClienteRepository clientes) => _clientes = clientes;
+
+    public async Task<Result<bool>> EjecutarAsync(
+        Guid clienteId, Guid veterinariaId, bool activar, CancellationToken cancellationToken = default)
+    {
+        Cliente? cliente = await _clientes.ObtenerPorIdAsync(clienteId, cancellationToken);
+        if (cliente is null)
+            return Result<bool>.Falla("El cliente no existe.");
+        if (cliente.VeterinariaId != veterinariaId)
+            return Result<bool>.Falla("El cliente no pertenece a tu veterinaria.");
+
+        if (activar) cliente.Activar();
+        else cliente.Desactivar();
+
+        await _clientes.ActualizarAsync(cliente, cancellationToken);
+        return Result<bool>.Exito(true);
+    }
+}

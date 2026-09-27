@@ -34,7 +34,7 @@ public sealed class AgregarRegistroMedico
             comando.VeterinariaId, comando.MascotaId, comando.Tipo,
             comando.Fecha, comando.Descripcion, comando.FechaProximaAplicacion,
             comando.Diagnostico, comando.Tratamiento, comando.PesoKg,
-            comando.TemperaturaC, comando.Notas);
+            comando.TemperaturaC, comando.Notas, comando.AtendidoPorId);
         if (!registroResult.EsExito)
             return Result<Guid>.Falla(registroResult.Error!);
 

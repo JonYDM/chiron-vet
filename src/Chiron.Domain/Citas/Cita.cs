@@ -24,19 +24,23 @@ public sealed class Cita : EntidadBase
     /// <summary>Estado actual de la cita.</summary>
     public EstadoCita Estado { get; private set; }
 
-    private Cita(Guid veterinariaId, Guid mascotaId, DateTime fechaHora, string motivo)
+    /// <summary>Veterinario asignado a la cita (opcional). Referencia a un Usuario.</summary>
+    public Guid? VeterinarioId { get; private set; }
+
+    private Cita(Guid veterinariaId, Guid mascotaId, DateTime fechaHora, string motivo, Guid? veterinarioId)
     {
         VeterinariaId = veterinariaId;
         MascotaId = mascotaId;
         FechaHora = fechaHora;
         Motivo = motivo;
         Estado = EstadoCita.Programada;
+        VeterinarioId = veterinarioId;
     }
 
     /// <summary>
     /// Agenda una nueva cita validando las reglas de negocio.
     /// </summary>
-    public static Result<Cita> Crear(Guid veterinariaId, Guid mascotaId, DateTime fechaHora, string motivo)
+    public static Result<Cita> Crear(Guid veterinariaId, Guid mascotaId, DateTime fechaHora, string motivo, Guid? veterinarioId = null)
     {
         if (veterinariaId == Guid.Empty)
             return Result<Cita>.Falla("La cita debe pertenecer a una veterinaria válida.");
@@ -50,7 +54,7 @@ public sealed class Cita : EntidadBase
         if (string.IsNullOrWhiteSpace(motivo))
             return Result<Cita>.Falla("El motivo de la cita es obligatorio.");
 
-        return Result<Cita>.Exito(new Cita(veterinariaId, mascotaId, fechaHora, motivo.Trim()));
+        return Result<Cita>.Exito(new Cita(veterinariaId, mascotaId, fechaHora, motivo.Trim(), veterinarioId));
     }
 
     /// <summary>Marca la cita como atendida. Solo válido si estaba programada.</summary>

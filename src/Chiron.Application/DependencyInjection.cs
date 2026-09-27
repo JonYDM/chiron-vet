@@ -26,8 +26,10 @@ public static class DependencyInjection
         services.AddTransient<ListarMascotasDeCliente>();
         services.AddTransient<CrearCliente>();
         services.AddTransient<EditarCliente>();
+        services.AddTransient<CambiarEstadoCliente>();
         services.AddTransient<AgregarMascota>();
         services.AddTransient<EditarMascota>();
+        services.AddTransient<CambiarEstadoMascota>();
 
         services.AddTransient<AgregarRegistroMedico>();
         services.AddTransient<VerExpedienteMascota>();
@@ -47,6 +49,7 @@ public static class DependencyInjection
         services.AddTransient<DesactivarProducto>();
         services.AddTransient<ListarVentas>();
         services.AddTransient<ListarVentasDeCliente>();
+        services.AddTransient<ResumenVentas>();
 
         services.AddTransient<Login>();
         services.AddTransient<CrearUsuarioStaff>();
@@ -57,6 +60,8 @@ public static class DependencyInjection
         services.AddTransient<ObtenerUsuarioDeCliente>();
         services.AddTransient<CambiarMiPin>();
         services.AddTransient<GestionarUsuario>();
+
+        services.AddTransient<Chiron.Application.Metricas.MetricasDashboard>();
 
         return services;
     }

@@ -17,4 +17,5 @@ public sealed record AgregarRegistroMedicoComando(
     string? Tratamiento = null,
     decimal? PesoKg = null,
     decimal? TemperaturaC = null,
-    string? Notas = null);
+    string? Notas = null,
+    Guid? AtendidoPorId = null);

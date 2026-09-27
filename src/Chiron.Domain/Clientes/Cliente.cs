@@ -37,6 +37,9 @@ public sealed class Cliente : EntidadBase
     /// </summary>
     public bool AceptaWhatsApp { get; private set; }
 
+    /// <summary>Indica si el cliente está activo (baja lógica; preserva su historial).</summary>
+    public bool Activo { get; private set; }
+
     // Constructor privado: fuerza el uso de la fábrica Crear para garantizar validez.
     private Cliente(Guid veterinariaId, string nombre, string telefono, OrigenCliente origen, bool aceptaWhatsApp)
     {
@@ -46,6 +49,7 @@ public sealed class Cliente : EntidadBase
         Origen = origen;
         AceptaWhatsApp = aceptaWhatsApp;
         FechaRegistro = DateTime.UtcNow;
+        Activo = true;
     }
 
     /// <summary>
@@ -87,6 +91,12 @@ public sealed class Cliente : EntidadBase
 
     /// <summary>Registra el consentimiento del cliente para recibir WhatsApp.</summary>
     public void OtorgarConsentimientoWhatsApp() => AceptaWhatsApp = true;
+
+    /// <summary>Da de baja lógica al cliente (preserva historial de mascotas/ventas).</summary>
+    public void Desactivar() => Activo = false;
+
+    /// <summary>Reactiva un cliente dado de baja.</summary>
+    public void Activar() => Activo = true;
 
     /// <summary>
     /// Actualiza los datos editables del cliente (nombre, teléfono, origen), aplicando

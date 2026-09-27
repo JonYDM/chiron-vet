@@ -290,17 +290,17 @@ app.MapPost("/api/usuarios/{id:guid}/resetear-pin", async (Guid id, ResetearPinD
 
 // El Administrador lista los usuarios (staff + dueños) de SU veterinaria.
 // El VeterinariaId se toma del token (aislamiento multi-tenant).
-app.MapGet("/api/usuarios/staff", async (ClaimsPrincipal user, ListarUsuariosDeVeterinaria uc) =>
+app.MapGet("/api/usuarios/staff", async (ClaimsPrincipal user, FiltroEstado? estado, ListarUsuariosDeVeterinaria uc) =>
 {
     if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
         return Results.BadRequest(new { error = "Token sin veterinaria válida." });
-    return Results.Ok(await uc.EjecutarAsync(veterinariaId));
+    return Results.Ok(await uc.EjecutarAsync(veterinariaId, estado ?? FiltroEstado.Activos));
 })
 .WithName("ListarUsuariosStaff").WithTags("Usuarios").RequireAuthorization(p => p.RequireRole(Administrador));
 
-// El SuperAdmin lista todos los Administradores de veterinarias.
-app.MapGet("/api/admin/administradores", async (ListarAdministradores uc) =>
-    Results.Ok(await uc.EjecutarAsync()))
+// El SuperAdmin lista todos los Administradores de veterinarias (con filtro de estado).
+app.MapGet("/api/admin/administradores", async (FiltroEstado? estado, ListarAdministradores uc) =>
+    Results.Ok(await uc.EjecutarAsync(estado ?? FiltroEstado.Activos)))
 .WithName("ListarAdministradores").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
 
 // Obtener el usuario (acceso al portal) de un cliente: indica si ya tiene acceso
@@ -343,14 +343,36 @@ app.MapPost("/api/registro-rapido", async (RegistrarClienteConMascotaComando cmd
 .WithName("RegistroRapido").WithTags("Clientes")
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
-app.MapGet("/api/veterinarias/{veterinariaId:guid}/clientes", async (Guid veterinariaId, string? texto, BuscarClientes uc) =>
-    Results.Ok(await uc.EjecutarAsync(veterinariaId, texto)))
+app.MapGet("/api/veterinarias/{veterinariaId:guid}/clientes", async (
+    Guid veterinariaId, string? texto, FiltroEstado? estado, int? pagina, int? tamano, BuscarClientes uc) =>
+    Results.Ok(await uc.EjecutarAsync(
+        veterinariaId, texto, estado ?? FiltroEstado.Activos, pagina ?? 1, tamano ?? 20)))
 .WithName("BuscarClientes").WithTags("Clientes")
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
-app.MapGet("/api/clientes/{clienteId:guid}/mascotas", async (Guid clienteId, ListarMascotasDeCliente uc) =>
-    Results.Ok(await uc.EjecutarAsync(clienteId)))
+app.MapGet("/api/clientes/{clienteId:guid}/mascotas", async (Guid clienteId, FiltroEstado? estado, ListarMascotasDeCliente uc) =>
+    Results.Ok(await uc.EjecutarAsync(clienteId, estado ?? FiltroEstado.Activos)))
 .WithName("MascotasDeCliente").WithTags("Mascotas")
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
+
+// Activar/desactivar (baja lógica) un cliente.
+app.MapPost("/api/clientes/{id:guid}/estado", async (Guid id, EstadoActivoDto dto, ClaimsPrincipal user, CambiarEstadoCliente uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+    return ToHttp(await uc.EjecutarAsync(id, veterinariaId, dto.Activar));
+})
+.WithName("CambiarEstadoCliente").WithTags("Clientes")
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
+
+// Activar/desactivar (baja lógica) una mascota.
+app.MapPost("/api/mascotas/{id:guid}/estado", async (Guid id, EstadoActivoDto dto, ClaimsPrincipal user, CambiarEstadoMascota uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+    return ToHttp(await uc.EjecutarAsync(id, veterinariaId, dto.Activar));
+})
+.WithName("CambiarEstadoMascota").WithTags("Mascotas")
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
 // Crear SOLO un cliente (sin mascota). El veterinariaId sale del token.
@@ -439,8 +461,8 @@ app.MapPost("/api/productos", async (AgregarProductoComando cmd, AgregarProducto
 .WithName("AgregarProducto").WithTags("PuntoVenta")
 .RequireAuthorization(p => p.RequireRole(Administrador));
 
-app.MapGet("/api/veterinarias/{veterinariaId:guid}/catalogo", async (Guid veterinariaId, ListarCatalogo uc) =>
-    Results.Ok(await uc.EjecutarAsync(veterinariaId)))
+app.MapGet("/api/veterinarias/{veterinariaId:guid}/catalogo", async (Guid veterinariaId, FiltroEstado? estado, ListarCatalogo uc) =>
+    Results.Ok(await uc.EjecutarAsync(veterinariaId, estado ?? FiltroEstado.Activos)))
 .WithName("ListarCatalogo").WithTags("PuntoVenta")
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
@@ -483,6 +505,16 @@ app.MapPost("/api/productos/{id:guid}/desactivar", async (Guid id, ClaimsPrincip
 app.MapGet("/api/veterinarias/{veterinariaId:guid}/ventas", async (Guid veterinariaId, DateTime? desde, DateTime? hasta, ListarVentas uc) =>
     Results.Ok(await uc.EjecutarAsync(veterinariaId, desde, hasta)))
 .WithName("ListarVentas").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador));
+
+// Resumen de ventas (total, conteo, desglose por método de pago) en un rango.
+app.MapGet("/api/veterinarias/{veterinariaId:guid}/ventas/resumen", async (Guid veterinariaId, DateTime? desde, DateTime? hasta, ResumenVentas uc) =>
+    Results.Ok(await uc.EjecutarAsync(veterinariaId, desde, hasta)))
+.WithName("ResumenVentas").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador));
+
+// Métricas del dashboard (ventas hoy/mes, citas próximas, clientes activos). Solo Admin.
+app.MapGet("/api/veterinarias/{veterinariaId:guid}/metricas", async (Guid veterinariaId, Chiron.Application.Metricas.MetricasDashboard uc) =>
+    Results.Ok(await uc.EjecutarAsync(veterinariaId)))
+.WithName("MetricasDashboard").WithTags("Metricas").RequireAuthorization(p => p.RequireRole(Administrador));
 
 // Historial de compras de un cliente (Admin/Recepcionista).
 app.MapGet("/api/clientes/{clienteId:guid}/ventas", async (Guid clienteId, ListarVentasDeCliente uc) =>
@@ -576,3 +608,4 @@ record EditarMascotaDto(
     string? Raza, DateOnly? FechaNacimiento, decimal? PesoKg, string? Padecimientos, bool? Esterilizado);
 record CambiarMiPinDto(string PinActual, string NuevoPin);
 record GestionarUsuarioDto(string? NuevoNombre, AccionUsuario? Accion);
+record EstadoActivoDto(bool Activar);
