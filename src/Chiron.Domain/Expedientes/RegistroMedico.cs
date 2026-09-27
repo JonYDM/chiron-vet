@@ -49,6 +49,9 @@ public sealed class RegistroMedico : EntidadBase
     /// <summary>Notas / observaciones adicionales del veterinario (opcional).</summary>
     public string? Notas { get; private set; }
 
+    /// <summary>Usuario (veterinario) que atendió/registró esta entrada (opcional).</summary>
+    public Guid? AtendidoPorId { get; private set; }
+
     private RegistroMedico(
         Guid veterinariaId,
         Guid mascotaId,
@@ -60,7 +63,8 @@ public sealed class RegistroMedico : EntidadBase
         string? tratamiento,
         decimal? pesoKg,
         decimal? temperaturaC,
-        string? notas)
+        string? notas,
+        Guid? atendidoPorId)
     {
         VeterinariaId = veterinariaId;
         MascotaId = mascotaId;
@@ -73,6 +77,7 @@ public sealed class RegistroMedico : EntidadBase
         PesoKg = pesoKg;
         TemperaturaC = temperaturaC;
         Notas = notas;
+        AtendidoPorId = atendidoPorId;
     }
 
     /// <summary>
@@ -89,7 +94,8 @@ public sealed class RegistroMedico : EntidadBase
         string? tratamiento = null,
         decimal? pesoKg = null,
         decimal? temperaturaC = null,
-        string? notas = null)
+        string? notas = null,
+        Guid? atendidoPorId = null)
     {
         if (veterinariaId == Guid.Empty)
             return Result<RegistroMedico>.Falla("El registro debe pertenecer a una veterinaria válida.");
@@ -113,7 +119,7 @@ public sealed class RegistroMedico : EntidadBase
 
         var registro = new RegistroMedico(
             veterinariaId, mascotaId, tipo, fecha, descripcion.Trim(), fechaProximaAplicacion,
-            Limpiar(diagnostico), Limpiar(tratamiento), pesoKg, temperaturaC, Limpiar(notas));
+            Limpiar(diagnostico), Limpiar(tratamiento), pesoKg, temperaturaC, Limpiar(notas), atendidoPorId);
         return Result<RegistroMedico>.Exito(registro);
     }
 
