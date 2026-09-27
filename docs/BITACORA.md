@@ -4,6 +4,38 @@
 
 ---
 
+## Sesión 2 (cierre) — 2026-09-27 — HITO: BACKEND EN PRODUCCIÓN
+
+### 🎉 Chiron desplegado y funcionando en internet
+- Backend en Railway: https://chiron-vet-production.up.railway.app
+- PostgreSQL conectado, migraciones aplicadas, tablas creadas.
+- **SuperAdmin real creado** vía variables de entorno (bootstrap). Usuario: jonyocampo.
+- **Login en producción verificado**: devuelve JWT válido, rol 99 (SuperAdmin).
+- Variables en Railway: ConnectionStrings__Chiron, Jwt__Clave, SuperAdmin__Usuario, SuperAdmin__Pin.
+
+### Gestión de usuarios (H9.5) mergeada
+- Endpoints SuperAdmin (crear/activar/desactivar veterinarias, crear admin) y Admin (crear staff/dueños).
+
+### Issues/pendientes del backend
+- 🟡 Swagger UI no renderiza en prod (issue menor, API funciona; JSON openapi 3.0.4 llega bien pero la UI lo rechaza tras el proxy — no resuelto tras varios intentos). Plan B: Scalar o forzar openapi 3.0.1.
+- 🟡 DataProtection: warnings en Railway (llaves no persistentes). No afecta el JWT (se firma con Jwt__Clave). Mejora futura.
+- ⬜ CORS: pendiente configurar para el frontend.
+- Recomendación de seguridad: tras crear el SuperAdmin, quitar variables SuperAdmin__* (el usuario ya está en BD).
+
+### DECISIÓN: Frontend en repo separado
+- **React + Vite + PWA**, repo `chiron-web`, desplegado en Vercel/Netlify.
+- Plan completo en `FRONTEND.md` (épicas F1-F6, endpoints de la API, credenciales de prueba).
+- Se descartó Flutter (complejidad Dart, orientado a móvil) y Blazor (dev prefiere Node/JS).
+- Próxima sesión arranca en el repo nuevo: setup React+Vite + pantalla de login contra la API real, y CORS en el backend.
+
+### Documentación actualizada para congruencia
+- README reescrito (visión actual, estado real, arquitectura backend+frontend).
+- CONTEXTO actualizado (estado real, precio objetivo, auth por PIN).
+- BACKLOG con Épica 11 (Frontend) + B-CORS. FRONTEND.md nuevo.
+
+---
+
+
 ## Sesión 2 (cont.) — 2026-09-27 — ÉPICA 9 (Seguridad) + ÉPICA 10 (Dueño de mascota)
 
 ### Autenticación con identificador + PIN (cambio en H9.1)
