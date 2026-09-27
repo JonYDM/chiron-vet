@@ -57,6 +57,19 @@ No inventamos una categoría nueva; mejoramos lo existente:
 - Gracias a Clean Architecture + SOLID + DI, si un módulo necesitara escalar de forma independiente en el futuro, puede **extraerse a un microservicio** sin reescribir el resto.
 - Señales para migrar a servicios: múltiples clientes con necesidades de escalado independiente, equipos grandes, despliegue independiente de módulos.
 
+### 🔑 GIRO IMPORTANTE DEL PRODUCTO — SaaS Multi-Tenant (2026-09-26)
+Para que Chiron sea un producto **rentable a múltiples veterinarias**, se adopta un diseño **multi-tenant** desde el núcleo:
+
+- **Tenant = Veterinaria**: cada veterinaria que renta el software es un "inquilino".
+- **Aislamiento de datos**: los datos de una veterinaria NUNCA se mezclan ni son visibles para otra. Casi todas las entidades llevan `VeterinariaId`.
+- **Usuarios y Roles**: dentro de cada veterinaria hay usuarios que operan el sistema, con roles:
+  - `Administrador` — dueño/gerente, ve todo incluidos reportes de dinero.
+  - `Veterinario` — atiende, ve/edita expedientes clínicos.
+  - `Recepcionista` — agenda citas, registra clientes.
+- **Nota sobre autenticación**: la entidad Usuario se modela ahora (datos + rol), pero el login/contraseñas seguras (autenticación real) es un tema aparte que va con la API/frontend (Épica 8). Por ahora NO hay login funcional.
+
+Este giro es la columna vertebral del modelo de negocio (rentar a muchas veterinarias con una sola instancia).
+
 ---
 
 ## Metodología de trabajo
