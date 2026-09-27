@@ -22,14 +22,15 @@ No inventamos una categoría nueva; mejoramos lo existente:
 |---|---|
 | Caro | Precio accesible |
 | Complicado, sobrecargado | Simple, directo, en español mexicano |
-| Sin recordatorios (o cobran extra) | **Recordatorios automáticos por WhatsApp** (diferenciador estrella) |
+| Sin recordatorios (o cobran extra) | **Recordatorios automáticos** vía notificaciones push / portal del dueño (diferenciador estrella) |
 | Soporte lento / en inglés | Soporte local y cercano |
 | Solo escritorio | Multiplataforma (web, celular) |
 
-### Diferenciador clave
-**Recordatorios automáticos por WhatsApp** de citas, vacunas y desparasitaciones. Esto hace que el cliente regrese → la veterinaria gana más → justifica pagar la renta mensual.
+### Diferenciador clave (ACTUALIZADO 2026-09-26)
+**Recordatorios automáticos** de citas, vacunas y desparasitaciones mediante **notificaciones push / portal del dueño de la mascota** dentro de la propia app web. Esto hace que el cliente regrese → la veterinaria gana más → justifica pagar la renta mensual.
 
-> Requisitos oficiales de Meta para esta integración documentados en `INTEGRACION-WHATSAPP.md` (incluye el cambio de precios del 1-oct-2026 que afecta el costo de recordatorios).
+> **GIRO DE ESTRATEGIA**: los recordatorios pasan de WhatsApp a **push notifications in-app** (costo cero, sin fricción de crear cuentas de Meta ni pagar por mensaje — barrera de venta en LATAM). Se agrega un **rol Dueño de mascota** para que el cliente final vea sus mascotas y recordatorios. Detalle y roadmap en `ROADMAP-SEGURIDAD-NOTIFICACIONES.md`.
+> **WhatsApp** queda como **feature futura bajo demanda** (diseño preservado en `INTEGRACION-WHATSAPP.md`). La lógica de detección de recordatorios (Épica 5) se reaprovecha; solo cambia el canal de entrega gracias a la abstracción `IServicioMensajeria`.
 
 ---
 
