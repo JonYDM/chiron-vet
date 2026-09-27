@@ -67,7 +67,7 @@ Núcleo que permite rentar el software a múltiples veterinarias con aislamiento
 ## ÉPICA 8 — API y Frontend
 | ID | Historia | Estado |
 |----|----------|--------|
-| H8.1 | Exponer API REST (ASP.NET Core Web API) | ⬜ |
+| H8.1 | Exponer API REST (ASP.NET Core Web API) | ✅ |
 | H8.2 | Interfaz web (celular + computadora) — opciones: React/Vue (aprovecha Node) o Blazor (solo C#). Móvil futuro: .NET MAUI | ⬜ |
 | H8.3 | Integración real de WhatsApp para recordatorios | ⬜ |
 
