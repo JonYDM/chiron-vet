@@ -22,6 +22,7 @@ public sealed class ChironDbContext : DbContext
     public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<Cliente> Clientes => Set<Cliente>();
     public DbSet<Mascota> Mascotas => Set<Mascota>();
+    public DbSet<FotoMascota> FotosMascota => Set<FotoMascota>();
     public DbSet<RegistroMedico> RegistrosMedicos => Set<RegistroMedico>();
     public DbSet<Cita> Citas => Set<Cita>();
     public DbSet<Producto> Productos => Set<Producto>();
@@ -34,6 +35,7 @@ public sealed class ChironDbContext : DbContext
         modelBuilder.Entity<Usuario>().HasKey(e => e.Id);
         modelBuilder.Entity<Cliente>().HasKey(e => e.Id);
         modelBuilder.Entity<Mascota>().HasKey(e => e.Id);
+        modelBuilder.Entity<FotoMascota>().HasKey(e => e.Id);
         modelBuilder.Entity<RegistroMedico>().HasKey(e => e.Id);
         modelBuilder.Entity<Cita>().HasKey(e => e.Id);
         modelBuilder.Entity<Producto>().HasKey(e => e.Id);

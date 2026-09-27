@@ -40,3 +40,16 @@ public sealed class MascotaRepositorioEf : RepositorioEf<Mascota>, IMascotaRepos
         Guid veterinariaId, CancellationToken cancellationToken = default)
         => await Conjunto.Where(m => m.VeterinariaId == veterinariaId).ToListAsync(cancellationToken);
 }
+
+/// <summary>Implementación EF Core de IFotoMascotaRepository.</summary>
+public sealed class FotoMascotaRepositorioEf : RepositorioEf<FotoMascota>, IFotoMascotaRepository
+{
+    public FotoMascotaRepositorioEf(ChironDbContext contexto) : base(contexto) { }
+
+    public async Task<IReadOnlyList<FotoMascota>> ListarPorMascotaAsync(
+        Guid mascotaId, CancellationToken cancellationToken = default)
+        => await Conjunto
+            .Where(f => f.MascotaId == mascotaId)
+            .OrderByDescending(f => f.FechaSubida)
+            .ToListAsync(cancellationToken);
+}
