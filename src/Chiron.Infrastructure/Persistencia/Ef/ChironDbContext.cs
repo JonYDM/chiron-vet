@@ -53,6 +53,8 @@ public sealed class ChironDbContext : DbContext
         {
             venta.HasKey(e => e.Id);
             venta.Property(e => e.Total).HasPrecision(18, 2);
+            venta.Property(e => e.MontoRecibido).HasPrecision(18, 2);
+            venta.Property(e => e.Cambio).HasPrecision(18, 2);
             // La colección se expone como Lineas (solo lectura) pero se respalda en el campo _lineas.
             venta.Navigation(e => e.Lineas).HasField("_lineas").UsePropertyAccessMode(PropertyAccessMode.Field);
             // LineaVenta no tiene Id propio: se modela como colección "owned" de la Venta.
