@@ -69,6 +69,17 @@
 - **Modelo B**: Chiron como **Tech Provider / Solution Partner** de Meta (gestiona la infra; más requisitos para nosotros).
 - Diseño recomendado: guardar la **config de WhatsApp por veterinaria (tenant)** para soportar ambos modelos.
 
+### Opción de implementación vía contacto (proveedor externo)
+El usuario tiene un contacto que ya construye agentes de IA conectados a Meta con cuentas de WhatsApp Business API.
+- Podría actuar como **Tech Provider/BSP**, evitándonos la verificación de negocio y config de WABA por cada veterinaria (facilita el Modelo B).
+- Preguntas clave a ese contacto:
+  1. ¿Es Tech Provider/BSP de Meta o conecta cuentas individuales?
+  2. ¿Cómo maneja multi-tenant (número por cliente o compartido)?
+  3. ¿Modelo de cobro (por mensaje / por cuenta)?
+  4. ¿Ofrece sandbox de pruebas?
+  5. ¿Expone la Cloud API de Meta directa o una capa propia?
+- Gracias a la abstracción `IServicioMensajeria`, la implementación real puede ser la Cloud API directa **o** la capa del contacto, sin tocar la lógica de negocio.
+
 ---
 
 ## Decisiones de diseño para el código (Épica 5)
