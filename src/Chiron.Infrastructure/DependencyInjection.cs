@@ -1,3 +1,5 @@
+using Chiron.Application.Common;
+using Chiron.Infrastructure.Persistencia;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Chiron.Infrastructure;
@@ -11,11 +13,15 @@ public static class DependencyInjection
 {
     /// <summary>
     /// Registra los servicios de la capa de Infraestructura.
-    /// Por ahora no hay implementaciones; el repositorio en memoria llegará en H1.3.
     /// </summary>
     public static IServiceCollection AddInfrastructure(this IServiceCollection services)
     {
-        // Aquí se registrarán repositorios y servicios externos en próximas historias.
+        // Repositorio genérico en memoria como implementación por defecto de IRepository<T>.
+        // Singleton: al ser almacenamiento en memoria, los datos deben vivir durante
+        // toda la ejecución (una instancia compartida). Al migrar a PostgreSQL (H7.1),
+        // aquí se cambiará por la implementación con base de datos, sin tocar Application.
+        services.AddSingleton(typeof(IRepository<>), typeof(RepositorioEnMemoria<>));
+
         return services;
     }
 }

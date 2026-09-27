@@ -6,6 +6,28 @@
 
 ## Sesión 2 (cont.) — 2026-09-26
 
+### [H1.3] Repositorio genérico + repositorio en memoria — ✅ COMPLETADA
+- **Domain**: `Common/EntidadBase.cs` (Id Guid) y `Common/EntidadPrueba.cs` (temporal, se elimina en Épica 2).
+- **Application**: `Common/IRepository<T>.cs` — contrato genérico asíncrono (Agregar, ObtenerPorId, ObtenerTodos, Actualizar, Eliminar).
+- **Infrastructure**: `Persistencia/RepositorioEnMemoria<T>.cs` con `ConcurrentDictionary` (O(1), thread-safe). Registrado en DI como Singleton (open generic).
+- Verificación: `dotnet run` resuelve `IRepository<EntidadPrueba>` desde el contenedor, agrega/recupera/lista correctamente (recupera "Firulais", total=1).
+
+### 🎉 ÉPICA 1 (Fundación técnica) COMPLETADA
+- H1.1 ✅ estructura Clean Architecture
+- H1.2 ✅ inyección de dependencias
+- H1.3 ✅ repositorio genérico intercambiable
+
+### Pendiente de esta sesión
+- Hacer PRs a main (los hace el usuario): mergear en orden H1.2 → H1.3 (H1.3 ya contiene a H1.2).
+- Nota: rama H1.3 parte de H1.2 (historias dependientes acumuladas).
+
+### Siguiente sesión
+- **Épica 2 (H2.1)** — entidad Cliente con validaciones. Eliminar `EntidadPrueba`.
+
+---
+
+## Sesión 2 (cont.) — 2026-09-26
+
 ### [H1.2] Configurar inyección de dependencias — ✅ COMPLETADA
 - Paquetes agregados (versiones fijadas a línea 8.x LTS):
   - `Microsoft.Extensions.DependencyInjection.Abstractions` 8.0.2 en Application e Infrastructure.
