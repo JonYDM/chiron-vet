@@ -78,6 +78,7 @@ Ver detalle en `ROADMAP-SEGURIDAD-NOTIFICACIONES.md`.
 | H9.2 | Roles predefinidos en backend + autorización por endpoint (`[Authorize]`) | ✅ |
 | H9.3 | Rol SuperAdmin + endpoints de alta/baja de veterinarias (proteger POST /api/veterinarias) | ✅ |
 | H9.4 | Control de suscripción: bloquear acceso a veterinarias desactivadas | ✅ (en Login) |
+| H9.5 | Gestión de usuarios: seed SuperAdmin en prod + endpoints para crear admin/staff/dueños | ✅ |
 
 ## ÉPICA 10 — Rol Dueño de mascota + Notificaciones
 | ID | Historia | Estado |
