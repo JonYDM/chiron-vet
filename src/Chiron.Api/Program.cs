@@ -86,6 +86,33 @@ if (!string.IsNullOrWhiteSpace(cadenaPostgres))
             Thread.Sleep(3000);
         }
     }
+
+    // Seed del SuperAdmin inicial (bootstrap). Solo si se configuran las variables
+    // SuperAdmin__Usuario y SuperAdmin__Pin, y solo si NO existe ya ese usuario.
+    // Credenciales SIEMPRE desde variables de entorno, nunca en el código.
+    string? saUsuario = builder.Configuration["SuperAdmin:Usuario"];
+    string? saPin = builder.Configuration["SuperAdmin:Pin"];
+    if (!string.IsNullOrWhiteSpace(saUsuario) && !string.IsNullOrWhiteSpace(saPin))
+    {
+        var repoUsuarios = scope.ServiceProvider.GetRequiredService<IUsuarioRepository>();
+        string idNorm = Usuario.NormalizarIdentificador(saUsuario);
+        Usuario? existente = await repoUsuarios.ObtenerPorNombreUsuarioAsync(idNorm);
+        if (existente is null)
+        {
+            var hasheador = scope.ServiceProvider.GetRequiredService<IHasheadorContrasena>();
+            Result<Usuario> sa = Usuario.CrearStaff(
+                Guid.Empty, saUsuario, "Super Admin", hasheador.Hashear(saPin), RolUsuario.SuperAdmin);
+            if (sa.EsExito)
+            {
+                await repoUsuarios.AgregarAsync(sa.Valor!);
+                logger.LogInformation("SuperAdmin inicial creado.");
+            }
+            else
+            {
+                logger.LogWarning("No se pudo crear el SuperAdmin: {Error}", sa.Error);
+            }
+        }
+    }
 }
 
 app.UseSwagger();
@@ -200,6 +227,45 @@ app.MapPost("/api/admin/veterinarias/{id:guid}/desactivar", async (Guid id, IRep
 app.MapGet("/api/admin/veterinarias", async (IRepository<Veterinaria> repo) =>
     Results.Ok(await repo.ObtenerTodosAsync()))
 .WithName("ListarVeterinarias").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
+
+// SuperAdmin crea el usuario ADMINISTRADOR de una veterinaria.
+app.MapPost("/api/admin/usuarios-admin", async (CrearUsuarioStaffComando cmd, CrearUsuarioStaff uc) =>
+{
+    // Fuerza el rol a Administrador sin importar lo que venga en el body.
+    var comando = cmd with { Rol = RolUsuario.Administrador };
+    return ToHttp(await uc.EjecutarAsync(comando));
+})
+.WithName("CrearAdminVeterinaria").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
+
+// ═══════════════════ GESTIÓN DE USUARIOS (Administrador de la veterinaria) ═══════════════════
+// El Administrador crea staff (veterinario/recepcionista) de SU veterinaria.
+// El VeterinariaId se toma del token del admin, no del body (aislamiento multi-tenant).
+app.MapPost("/api/usuarios/staff", async (CrearStaffDto dto, ClaimsPrincipal user, CrearUsuarioStaff uc) =>
+{
+    string? vetClaim = user.FindFirst("veterinariaId")?.Value;
+    if (!Guid.TryParse(vetClaim, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+
+    // Un admin solo puede crear Veterinario o Recepcionista (no otros admins ni superadmin).
+    if (dto.Rol != RolUsuario.Veterinario && dto.Rol != RolUsuario.Recepcionista)
+        return Results.BadRequest(new { error = "Rol no permitido. Use Veterinario o Recepcionista." });
+
+    var comando = new CrearUsuarioStaffComando(veterinariaId, dto.NombreUsuario, dto.Nombre, dto.Pin, dto.Rol);
+    return ToHttp(await uc.EjecutarAsync(comando));
+})
+.WithName("CrearStaff").WithTags("Usuarios").RequireAuthorization(p => p.RequireRole(Administrador));
+
+// El Administrador/Recepcionista crea el acceso de un dueño de mascota (por su cliente).
+app.MapPost("/api/usuarios/dueno", async (CrearDuenoDto dto, ClaimsPrincipal user, CrearUsuarioDueno uc) =>
+{
+    string? vetClaim = user.FindFirst("veterinariaId")?.Value;
+    if (!Guid.TryParse(vetClaim, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+
+    var comando = new CrearUsuarioDuenoComando(veterinariaId, dto.ClienteId, dto.Pin);
+    return ToHttp(await uc.EjecutarAsync(comando));
+})
+.WithName("CrearDueno").WithTags("Usuarios").RequireAuthorization(p => p.RequireRole(Administrador, Recepcionista));
 
 // ═══════════════════ CLIENTES Y MASCOTAS (staff de la veterinaria) ═══════════════════
 app.MapPost("/api/registro-rapido", async (RegistrarClienteConMascotaComando cmd, RegistrarClienteConMascota uc) =>
@@ -320,3 +386,9 @@ app.Run();
 
 // DTO de entrada para crear veterinaria.
 record CrearVeterinariaDto(string Nombre, string Telefono);
+
+// DTO para que el Administrador cree staff de su veterinaria (el VeterinariaId sale del token).
+record CrearStaffDto(string NombreUsuario, string Nombre, string Pin, RolUsuario Rol);
+
+// DTO para crear el acceso de un dueño de mascota (por su cliente).
+record CrearDuenoDto(Guid ClienteId, string Pin);

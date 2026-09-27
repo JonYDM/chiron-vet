@@ -113,3 +113,31 @@ más completo para vender a la veterinaria.
 - Proteger `POST /api/veterinarias` (hoy abierto) → solo SuperAdmin.
 - Agregar entidad/tabla de credenciales y contraseñas de Usuario (con hash).
 - La entidad Veterinaria necesitará (si vuelve WhatsApp) campos de credenciales de WhatsApp por tenant.
+
+---
+
+## Puesta en marcha en PRODUCCIÓN (bootstrap del SuperAdmin)
+
+Implementado (rama H9.5): al arrancar en modo PostgreSQL, la API crea el SuperAdmin inicial
+**solo si no existe** y **solo si** están configuradas las variables de entorno. Credenciales
+NUNCA en el código.
+
+### Variables de entorno a configurar en Railway (servicio de la API)
+- `Jwt__Clave` = clave secreta larga (mín. 32 caracteres) para firmar los JWT. **Obligatoria en prod.**
+- `SuperAdmin__Usuario` = identificador del SuperAdmin (ej. "jonocampo").
+- `SuperAdmin__Pin` = PIN de 6 dígitos del SuperAdmin.
+- (Ya configurada) `ConnectionStrings__Chiron` = cadena de PostgreSQL.
+
+> Nota: el doble guion bajo `__` es la convención de .NET para representar secciones
+> anidadas (`Jwt:Clave`, `SuperAdmin:Usuario`) en variables de entorno.
+
+### Flujo de alta una vez desplegado
+1. Configurar las variables → redeploy → se crea el SuperAdmin automáticamente.
+2. SuperAdmin hace login (`POST /api/auth/login`).
+3. SuperAdmin crea veterinarias (`POST /api/admin/veterinarias`) y su admin (`POST /api/admin/usuarios-admin`).
+4. El Administrador de cada veterinaria crea su staff (`POST /api/usuarios/staff`) y accesos de dueños (`POST /api/usuarios/dueno`).
+5. Control de pago: activar/desactivar veterinarias desde los endpoints de SuperAdmin.
+
+### Seguridad recomendada tras el primer arranque
+- Una vez creado el SuperAdmin, se pueden **quitar** las variables `SuperAdmin__*` (ya no se necesitan; el usuario queda en la BD).
+- Cambiar el PIN del SuperAdmin por uno definitivo.

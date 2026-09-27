@@ -39,6 +39,8 @@ public static class DependencyInjection
         services.AddTransient<RegistrarVenta>();
 
         services.AddTransient<Login>();
+        services.AddTransient<CrearUsuarioStaff>();
+        services.AddTransient<CrearUsuarioDueno>();
 
         return services;
     }
