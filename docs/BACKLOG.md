@@ -19,7 +19,7 @@ Base del proyecto con Clean Architecture y DI.
 ## ÉPICA 2 — Gestión de clientes y mascotas (el corazón)
 | ID | Historia | Estado |
 |----|----------|--------|
-| H2.1 | Registrar cliente (dueño) con validaciones | ⬜ |
+| H2.1 | Registrar cliente (dueño) con validaciones | ✅ |
 | H2.2 | Registrar mascota asociada a un cliente | ⬜ |
 | H2.3 | Listar y buscar clientes / mascotas | ⬜ |
 

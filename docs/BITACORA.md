@@ -6,6 +6,27 @@
 
 ## Sesión 2 (cont.) — 2026-09-26
 
+### [H2.1] Entidad Cliente con validaciones — ✅ COMPLETADA (inicia Épica 2)
+- Modelo de Cliente acordado con el usuario:
+  - `Nombre` (obligatorio), `Telefono` (obligatorio, base WhatsApp).
+  - `FechaRegistro` (auto, UTC) → métricas de crecimiento/retención.
+  - `Origen` (enum `OrigenCliente`) → métricas de marketing (cómo nos conoció).
+  - Se descartó el correo (poco usado en LATAM).
+- Archivos nuevos en **Domain**:
+  - `Common/Result.cs` — tipo Result<T> para validaciones sin excepciones.
+  - `Clientes/OrigenCliente.cs` — enum de canal de captación.
+  - `Clientes/Cliente.cs` — entidad rica: constructor privado + fábrica `Crear` que valida (nombre no vacío, teléfono ≥ 10 dígitos) y normaliza el teléfono a solo dígitos.
+- Eliminada `Common/EntidadPrueba.cs` (ya no se necesita).
+- `Program.cs` demuestra: cliente válido (teléfono normalizado 777-123-4567 → 7771234567), y 2 casos inválidos rechazados. Total almacenado = 1.
+- Verificación: `dotnet run` OK, comportamiento esperado en los 3 casos.
+
+### Siguiente paso
+- **H2.2** — entidad Mascota asociada a un Cliente.
+
+---
+
+## Sesión 2 (cont.) — 2026-09-26
+
 ### [H1.3] Repositorio genérico + repositorio en memoria — ✅ COMPLETADA
 - **Domain**: `Common/EntidadBase.cs` (Id Guid) y `Common/EntidadPrueba.cs` (temporal, se elimina en Épica 2).
 - **Application**: `Common/IRepository<T>.cs` — contrato genérico asíncrono (Agregar, ObtenerPorId, ObtenerTodos, Actualizar, Eliminar).

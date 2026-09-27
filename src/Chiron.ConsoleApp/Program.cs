@@ -1,5 +1,6 @@
 using Chiron.Application;
 using Chiron.Application.Common;
+using Chiron.Domain.Clientes;
 using Chiron.Domain.Common;
 using Chiron.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,9 +9,7 @@ using Microsoft.Extensions.Logging;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Chiron.ConsoleApp — Punto de entrada y composición de la aplicación.
-//
 // Composition Root: único lugar donde se arma el contenedor de DI.
-// Cada capa registra lo suyo (AddApplication / AddInfrastructure).
 // ─────────────────────────────────────────────────────────────────────────────
 
 using IHost host = Host.CreateDefaultBuilder(args)
@@ -22,24 +21,32 @@ using IHost host = Host.CreateDefaultBuilder(args)
     .Build();
 
 ILogger<Program> logger = host.Services.GetRequiredService<ILogger<Program>>();
-
 logger.LogInformation("🐾 Chiron — Sistema de gestión para veterinarias");
-logger.LogInformation("Fundación técnica lista (Épica 1: DI + repositorio base).");
 
-// ── Prueba del repositorio genérico resuelto por DI (H1.3) ──
-// Se resuelve IRepository<EntidadPrueba> desde el contenedor: la app NO crea
-// la implementación concreta, solo pide el contrato. Eso es Inversión de Dependencias.
-IRepository<EntidadPrueba> repositorio =
-    host.Services.GetRequiredService<IRepository<EntidadPrueba>>();
+// Repositorio de clientes resuelto por DI (contrato, no implementación concreta).
+IRepository<Cliente> clientes = host.Services.GetRequiredService<IRepository<Cliente>>();
 
-var prueba = new EntidadPrueba("Firulais");
-await repositorio.AgregarAsync(prueba);
+// ── Caso 1: cliente válido ──
+Result<Cliente> resultado = Cliente.Crear("María González", "777-123-4567", OrigenCliente.Recomendacion);
+if (resultado.EsExito)
+{
+    await clientes.AgregarAsync(resultado.Valor!);
+    logger.LogInformation("✅ Cliente registrado: {Nombre} | Tel: {Telefono} | Origen: {Origen}",
+        resultado.Valor!.Nombre, resultado.Valor.Telefono, resultado.Valor.Origen);
+}
 
-EntidadPrueba? recuperada = await repositorio.ObtenerPorIdAsync(prueba.Id);
-IReadOnlyList<EntidadPrueba> todos = await repositorio.ObtenerTodosAsync();
+// ── Caso 2: cliente inválido (sin nombre) ──
+Result<Cliente> invalido = Cliente.Crear("", "7771234567");
+if (!invalido.EsExito)
+    logger.LogWarning("⛔ Registro rechazado (esperado): {Error}", invalido.Error);
 
-logger.LogInformation("Repositorio en memoria verificado:");
-logger.LogInformation("  - Entidad recuperada por Id: {Nombre}", recuperada?.Nombre ?? "(no encontrada)");
-logger.LogInformation("  - Total de entidades almacenadas: {Total}", todos.Count);
+// ── Caso 3: cliente inválido (teléfono corto) ──
+Result<Cliente> telCorto = Cliente.Crear("Juan Pérez", "123");
+if (!telCorto.EsExito)
+    logger.LogWarning("⛔ Registro rechazado (esperado): {Error}", telCorto.Error);
+
+// ── Verificación de persistencia ──
+IReadOnlyList<Cliente> todos = await clientes.ObtenerTodosAsync();
+logger.LogInformation("Total de clientes almacenados: {Total}", todos.Count);
 
 await host.StopAsync();
