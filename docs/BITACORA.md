@@ -4,6 +4,31 @@
 
 ---
 
+## Sesión 2 (cont.) — 2026-09-26 — DECISIONES ESTRATÉGICAS
+
+### Despliegue en Railway ✅
+- API desplegada en `chiron-vet-production.up.railway.app` con PostgreSQL real.
+- Migraciones aplicadas; tablas creadas. Ajustes: puerto de Railway (PORT) + reintentos de migración.
+- Fix de Swagger UI en producción pendiente de merge (rama `fix/swagger-ui-produccion`).
+- Nota de costos: Railway es TRIAL ($5 crédito/30 días), Hobby ~$5 USD/mes. Alternativa gratis: Render/Fly + Neon/Supabase (dockerizado, sin lock-in).
+
+### GIRO DE PRODUCTO documentado (NO implementado aún)
+Ver `ROADMAP-SEGURIDAD-NOTIFICACIONES.md`.
+1. **Recordatorios: WhatsApp → notificaciones push / in-app**. Motivo: costo cero + sin fricción LATAM (no crear cuenta Meta ni pagar msj). Reusa lógica de Épica 5 vía `IServicioMensajeria`.
+2. **WhatsApp → feature futura** bajo demanda (diseño preservado).
+3. **Nuevo rol: Dueño de mascota** (ve solo sus mascotas/historial/recordatorios).
+4. **Épica de Seguridad (crítica)**: login + JWT + hash de contraseñas + roles predefinidos en backend + autorización por endpoint.
+5. **Rol SuperAdmin** (JonYDM): alta/baja de veterinarias, control de suscripción/pago. Proteger `POST /api/veterinarias` (hoy abierto).
+
+### Backlog actualizado
+- Épica 9 (Seguridad), Épica 10 (Dueño de mascota + push), sección Futuro (WhatsApp F1/F2).
+
+### Pendientes inmediatos
+- Merge del fix de Swagger.
+- Definir arranque: frontend (H8.2) y/o Épica 9 (Seguridad).
+
+---
+
 ## Sesión 2 (cont.) — 2026-09-26
 
 ### 🎉 ÉPICA 7 (Persistencia real + Docker) COMPLETADA — H7.1, H7.2

@@ -69,7 +69,28 @@ Núcleo que permite rentar el software a múltiples veterinarias con aislamiento
 |----|----------|--------|
 | H8.1 | Exponer API REST (ASP.NET Core Web API) | ✅ |
 | H8.2 | Interfaz web (celular + computadora) — opciones: React/Vue (aprovecha Node) o Blazor (solo C#). Móvil futuro: .NET MAUI | ⬜ |
-| H8.3 | Integración real de WhatsApp para recordatorios | ⬜ |
+
+## ÉPICA 9 — Seguridad (Autenticación y Autorización) — CRÍTICA
+Ver detalle en `ROADMAP-SEGURIDAD-NOTIFICACIONES.md`.
+| ID | Historia | Estado |
+|----|----------|--------|
+| H9.1 | Login + JWT (tokens firmados) y hash seguro de contraseñas | ⬜ |
+| H9.2 | Roles predefinidos en backend + autorización por endpoint (`[Authorize]`) | ⬜ |
+| H9.3 | Rol SuperAdmin + endpoints de alta/baja de veterinarias (proteger POST /api/veterinarias) | ⬜ |
+| H9.4 | Control de suscripción: bloquear acceso a veterinarias desactivadas | ⬜ |
+
+## ÉPICA 10 — Rol Dueño de mascota + Notificaciones
+| ID | Historia | Estado |
+|----|----------|--------|
+| H10.1 | Rol Dueño de mascota (acceso limitado a sus mascotas e historial) | ⬜ |
+| H10.2 | Recordatorios in-app (reusa lógica de detección de Épica 5) | ⬜ |
+| H10.3 | Notificaciones push web (gratis, sin fricción de Meta) | ⬜ |
+
+## FUTURO / Bajo demanda
+| ID | Historia | Estado |
+|----|----------|--------|
+| F1 | Integración real de WhatsApp (movido desde H8.3; solo si un cliente lo pide) | 🔵 Futuro |
+| F2 | Atención por WhatsApp: webhook + envío de PDF del expediente (ventana 24h) | 🔵 Futuro |
 
 ---
 
