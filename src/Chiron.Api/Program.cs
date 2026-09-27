@@ -72,9 +72,11 @@ if (!string.IsNullOrWhiteSpace(cadenaPostgres))
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    // Endpoint explícito del documento OpenAPI. Sin esto, la UI puede fallar en
-    // producción ("Unable to render this definition") al usar una ruta relativa.
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Chiron.Api v1");
+    // Ruta RELATIVA al documento OpenAPI. Detrás de un proxy (Railway), una ruta
+    // absoluta ("/swagger/v1/swagger.json") puede resolverse mal y hacer que la UI
+    // no encuentre la definición ("Unable to render this definition"). La ruta
+    // relativa "v1/swagger.json" (respecto a /swagger/) funciona en local y producción.
+    c.SwaggerEndpoint("v1/swagger.json", "Chiron.Api v1");
 });
 
 // Redirige la raíz a Swagger para que al abrir el navegador se vea la API.
