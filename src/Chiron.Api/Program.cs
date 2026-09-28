@@ -395,6 +395,16 @@ app.MapGet("/api/mascotas", async (string? texto, ClaimsPrincipal user, ListarMa
 .WithName("ListarPacientes").WithTags("Mascotas")
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
+// Obtener una mascota completa por id (peso, esterilizado, padecimientos, etc.).
+app.MapGet("/api/mascotas/{id:guid}", async (Guid id, ClaimsPrincipal user, ObtenerMascota uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+    return ToHttp(await uc.EjecutarAsync(id, veterinariaId));
+})
+.WithName("ObtenerMascota").WithTags("Mascotas")
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista, DuenoMascota));
+
 // Activar/desactivar (baja lógica) un cliente.
 app.MapPost("/api/clientes/{id:guid}/estado", async (Guid id, EstadoActivoDto dto, ClaimsPrincipal user, CambiarEstadoCliente uc) =>
 {
