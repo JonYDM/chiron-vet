@@ -14,8 +14,23 @@ public sealed record MetricasDashboardDto(
     int ClientesActivos);
 
 /// <summary>
+/// Alcance de las métricas de dinero que puede ver quien consulta el dashboard.
+/// - Ninguno: no ve ventas (Veterinario).
+/// - SoloHoy: ve solo la venta del día, su caja (Recepcionista).
+/// - Completo: ve ventas del día y del mes, lo que genera el negocio (Admin).
+/// </summary>
+public enum AlcanceMetricas
+{
+    Ninguno = 0,
+    SoloHoy = 1,
+    Completo = 2,
+}
+
+/// <summary>
 /// Caso de uso: reunir las métricas del dashboard de una veterinaria. Todo el cálculo
-/// (sumas, conteos, filtros por fecha) se hace en el servidor, no en el cliente.
+/// (sumas, conteos, filtros por fecha) se hace en el servidor, no en el cliente. Las
+/// métricas de dinero se ENTREGAN según el alcance del rol (el Veterinario no las recibe;
+/// la Recepcionista solo la venta del día; el Admin todo).
 /// </summary>
 public sealed class MetricasDashboard
 {
@@ -32,25 +47,38 @@ public sealed class MetricasDashboard
     }
 
     public async Task<MetricasDashboardDto> EjecutarAsync(
-        Guid veterinariaId, CancellationToken cancellationToken = default)
+        Guid veterinariaId, AlcanceMetricas alcance, CancellationToken cancellationToken = default)
     {
         DateTime ahora = DateTime.UtcNow;
         DateTime inicioDia = new(ahora.Year, ahora.Month, ahora.Day, 0, 0, 0, DateTimeKind.Utc);
         DateTime inicioMes = new(ahora.Year, ahora.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        var ventasMes = await _ventas.ListarPorVeterinariaAsync(veterinariaId, inicioMes, ahora, cancellationToken);
-        decimal ventasHoy = ventasMes.Where(v => v.FechaHora >= inicioDia).Sum(v => v.Total);
-
+        // Métricas operativas: las ven todos los roles del staff.
         var proximas = await _citas.ObtenerProximasAsync(veterinariaId, ahora, cancellationToken);
         int citasProximas = proximas.Count(c => c.Estado == EstadoCita.Programada);
 
         var clientes = await _clientes.ListarPorVeterinariaAsync(veterinariaId, cancellationToken);
         int clientesActivos = clientes.Count(c => c.Activo);
 
+        // Métricas de dinero: solo si el alcance lo permite.
+        decimal ventasHoy = 0m, ventasMes = 0m;
+        int numeroVentasMes = 0;
+        if (alcance != AlcanceMetricas.Ninguno)
+        {
+            var ventasMesLista = await _ventas.ListarPorVeterinariaAsync(veterinariaId, inicioMes, ahora, cancellationToken);
+            ventasHoy = ventasMesLista.Where(v => v.FechaHora >= inicioDia).Sum(v => v.Total);
+            // El mes/acumulado solo lo ve el Admin (alcance Completo).
+            if (alcance == AlcanceMetricas.Completo)
+            {
+                ventasMes = ventasMesLista.Sum(v => v.Total);
+                numeroVentasMes = ventasMesLista.Count;
+            }
+        }
+
         return new MetricasDashboardDto(
             VentasHoy: ventasHoy,
-            VentasMes: ventasMes.Sum(v => v.Total),
-            NumeroVentasMes: ventasMes.Count,
+            VentasMes: ventasMes,
+            NumeroVentasMes: numeroVentasMes,
             CitasProximas: citasProximas,
             ClientesActivos: clientesActivos);
     }
