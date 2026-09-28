@@ -384,6 +384,17 @@ app.MapGet("/api/clientes/{clienteId:guid}/mascotas", async (Guid clienteId, Fil
 .WithName("MascotasDeCliente").WithTags("Mascotas")
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
+// Listar TODAS las mascotas de la veterinaria (pacientes) con su dueño y búsqueda.
+// El veterinariaId sale del token (aislamiento multi-tenant).
+app.MapGet("/api/mascotas", async (string? texto, ClaimsPrincipal user, ListarMascotasDeVeterinaria uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+    return Results.Ok(await uc.EjecutarAsync(veterinariaId, texto));
+})
+.WithName("ListarPacientes").WithTags("Mascotas")
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
+
 // Activar/desactivar (baja lógica) un cliente.
 app.MapPost("/api/clientes/{id:guid}/estado", async (Guid id, EstadoActivoDto dto, ClaimsPrincipal user, CambiarEstadoCliente uc) =>
 {

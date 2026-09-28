@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddTransient<RegistrarClienteConMascota>();
         services.AddTransient<BuscarClientes>();
         services.AddTransient<ListarMascotasDeCliente>();
+        services.AddTransient<ListarMascotasDeVeterinaria>();
         services.AddTransient<CrearCliente>();
         services.AddTransient<EditarCliente>();
         services.AddTransient<CambiarEstadoCliente>();
