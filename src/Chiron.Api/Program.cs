@@ -426,6 +426,22 @@ app.MapPost("/api/mascotas/{id:guid}/estado", async (Guid id, EstadoActivoDto dt
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
 // ═══════════════════ FOTOS DE MASCOTA (galería) ═══════════════════
+// Subir la foto de PERFIL (avatar) de la mascota (una sola, reemplaza la anterior).
+app.MapPost("/api/mascotas/{id:guid}/foto-perfil", async (
+    Guid id, IFormFile archivo, ClaimsPrincipal user, SubirFotoPerfil uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+    if (archivo is null || archivo.Length == 0)
+        return Results.BadRequest(new { error = "No se recibió ninguna imagen." });
+    using var ms = new MemoryStream();
+    await archivo.CopyToAsync(ms);
+    return ToHttp(await uc.EjecutarAsync(id, veterinariaId, ms.ToArray()));
+})
+.WithName("SubirFotoPerfil").WithTags("Mascotas")
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista))
+.DisableAntiforgery();
+
 // Subir una foto a la galería de una mascota (multipart/form-data, campo "archivo").
 // Opcionalmente se liga a un registro médico vía query ?registroMedicoId=...
 app.MapPost("/api/mascotas/{id:guid}/fotos", async (

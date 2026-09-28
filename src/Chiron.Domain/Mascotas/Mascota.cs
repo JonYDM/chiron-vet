@@ -43,6 +43,12 @@ public sealed class Mascota : EntidadBase
     /// <summary>Indica si la mascota está activa (baja lógica; preserva su expediente).</summary>
     public bool Activo { get; private set; }
 
+    /// <summary>URL de la foto de perfil (avatar) de la mascota. Null si no tiene.</summary>
+    public string? FotoPerfilUrl { get; private set; }
+
+    /// <summary>Establece (o reemplaza) la URL de la foto de perfil.</summary>
+    public void EstablecerFotoPerfil(string url) => FotoPerfilUrl = url;
+
     private Mascota(
         Guid veterinariaId,
         Guid clienteId,
