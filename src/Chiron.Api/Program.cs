@@ -81,6 +81,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 
+// CORS: permite el/los origen(es) del frontend (Netlify/Vercel/dominio propio).
+// Los orígenes se configuran por variable de entorno Cors__Origenes (separados por coma),
+// p. ej. "https://chiron.netlify.app,https://app.chiron.mx". Sin variable, no permite
+// orígenes externos (seguro por defecto). Nunca usa AllowAnyOrigin.
+const string PoliticaCors = "FrontendPermitido";
+string[] origenesCors = (builder.Configuration["Cors:Origenes"] ?? "")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+builder.Services.AddCors(opciones =>
+{
+    opciones.AddPolicy(PoliticaCors, politica =>
+    {
+        if (origenesCors.Length > 0)
+            politica.WithOrigins(origenesCors).AllowAnyHeader().AllowAnyMethod();
+    });
+});
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -133,6 +149,9 @@ if (!string.IsNullOrWhiteSpace(cadenaPostgres))
 
 app.UseSwagger();
 app.UseSwaggerUI(c => c.SwaggerEndpoint("v1/swagger.json", "Chiron.Api v1"));
+
+// El orden importa: CORS antes de autenticación/autorización.
+app.UseCors(PoliticaCors);
 
 // El orden importa: autenticación antes que autorización.
 app.UseAuthentication();
