@@ -10,6 +10,7 @@ using Chiron.Application.PuntoVenta;
 using Chiron.Application.Recordatorios;
 using Chiron.Application.Seguridad;
 using Chiron.Domain.Common;
+using Chiron.Domain.Citas;
 using Chiron.Domain.Clientes;
 using Chiron.Domain.Mascotas;
 using Chiron.Domain.PuntoVenta;
@@ -555,6 +556,18 @@ app.MapPost("/api/citas", async (AgendarCitaComando cmd, AgendarCita uc) =>
 app.MapGet("/api/veterinarias/{veterinariaId:guid}/citas/proximas", async (Guid veterinariaId, VerAgenda uc) =>
     Results.Ok(await uc.ProximasAsync(veterinariaId)))
 .WithName("ProximasCitas").WithTags("Citas")
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
+
+// Lista TODAS las citas de la veterinaria (opcionalmente por estado), con nombre de
+// mascota y dueño resueltos. Es la fuente para el historial y los filtros por estado.
+// El veterinariaId sale del token (aislamiento multi-tenant).
+app.MapGet("/api/citas", async (EstadoCita? estado, ClaimsPrincipal user, VerAgenda uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "El token no tiene veterinariaId." });
+    return Results.Ok(await uc.ListarAsync(veterinariaId, estado));
+})
+.WithName("ListarCitas").WithTags("Citas")
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
 // Cambiar el estado de una cita (atender / cancelar / no asistió). El veterinariaId sale del token.

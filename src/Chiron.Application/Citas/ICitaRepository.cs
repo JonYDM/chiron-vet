@@ -15,4 +15,11 @@ public interface ICitaRepository : IRepository<Cita>
     /// <summary>Obtiene las próximas citas programadas de una veterinaria a partir de un momento dado.</summary>
     Task<IReadOnlyList<Cita>> ObtenerProximasAsync(
         Guid veterinariaId, DateTime desde, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lista las citas de una veterinaria, opcionalmente filtradas por estado, ordenadas
+    /// por fecha descendente (para ver el historial completo: atendidas, canceladas, etc.).
+    /// </summary>
+    Task<IReadOnlyList<Cita>> ListarPorVeterinariaAsync(
+        Guid veterinariaId, EstadoCita? estado, CancellationToken cancellationToken = default);
 }
