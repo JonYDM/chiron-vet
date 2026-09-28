@@ -733,6 +733,16 @@ app.MapGet("/api/portal/mis-recordatorios", async (ClaimsPrincipal user, int? di
 })
 .WithName("MisRecordatorios").WithTags("Portal").RequireAuthorization(p => p.RequireRole(DuenoMascota));
 
+// Mis compras/cobros (lo que el dueño pagó: consultas, artículos). El clienteId sale del
+// token, así el dueño solo ve lo suyo.
+app.MapGet("/api/portal/mis-compras", async (ClaimsPrincipal user, ListarVentasDeCliente uc) =>
+{
+    var datos = DatosDueno(user);
+    if (datos is null) return Results.BadRequest(new { error = "Token inválido." });
+    return Results.Ok(await uc.EjecutarAsync(datos.Value.clienteId));
+})
+.WithName("MisCompras").WithTags("Portal").RequireAuthorization(p => p.RequireRole(DuenoMascota));
+
 app.Run();
 
 // DTO de entrada para crear veterinaria.
