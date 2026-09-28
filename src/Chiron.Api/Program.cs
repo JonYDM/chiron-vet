@@ -591,7 +591,7 @@ app.MapPost("/api/productos", async (AgregarProductoComando cmd, AgregarProducto
 app.MapGet("/api/veterinarias/{veterinariaId:guid}/catalogo", async (Guid veterinariaId, FiltroEstado? estado, ListarCatalogo uc) =>
     Results.Ok(await uc.EjecutarAsync(veterinariaId, estado ?? FiltroEstado.Activos)))
 .WithName("ListarCatalogo").WithTags("PuntoVenta")
-.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
+.RequireAuthorization(p => p.RequireRole(Administrador, Recepcionista));
 
 // Vender: recepción y admin.
 app.MapPost("/api/ventas", async (RegistrarVentaComando cmd, RegistrarVenta uc) =>
@@ -636,12 +636,26 @@ app.MapGet("/api/veterinarias/{veterinariaId:guid}/ventas", async (Guid veterina
 // Resumen de ventas (total, conteo, desglose por método de pago) en un rango.
 app.MapGet("/api/veterinarias/{veterinariaId:guid}/ventas/resumen", async (Guid veterinariaId, DateTime? desde, DateTime? hasta, ResumenVentas uc) =>
     Results.Ok(await uc.EjecutarAsync(veterinariaId, desde, hasta)))
-.WithName("ResumenVentas").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador));
+.WithName("ResumenVentas").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador, Recepcionista));
 
 // Métricas del dashboard (ventas hoy/mes, citas próximas, clientes activos). Solo Admin.
-app.MapGet("/api/veterinarias/{veterinariaId:guid}/metricas", async (Guid veterinariaId, Chiron.Application.Metricas.MetricasDashboard uc) =>
-    Results.Ok(await uc.EjecutarAsync(veterinariaId)))
-.WithName("MetricasDashboard").WithTags("Metricas").RequireAuthorization(p => p.RequireRole(Administrador));
+app.MapGet("/api/veterinarias/{veterinariaId:guid}/metricas", async (Guid veterinariaId, ClaimsPrincipal user, Chiron.Application.Metricas.MetricasDashboard uc) =>
+{
+    // Alcance de las métricas de dinero según el rol:
+    //  - Admin: todo (ventas del día y del mes; lo que genera el negocio).
+    //  - Recepcionista: solo la venta del día (su caja).
+    //  - Veterinario: ninguna métrica de dinero (solo operativas).
+    string? rol = user.FindFirst(ClaimTypes.Role)?.Value ?? user.FindFirst("role")?.Value;
+    Chiron.Application.Metricas.AlcanceMetricas alcance = rol switch
+    {
+        var r when r == Administrador => Chiron.Application.Metricas.AlcanceMetricas.Completo,
+        var r when r == Recepcionista => Chiron.Application.Metricas.AlcanceMetricas.SoloHoy,
+        _ => Chiron.Application.Metricas.AlcanceMetricas.Ninguno,
+    };
+    return Results.Ok(await uc.EjecutarAsync(veterinariaId, alcance));
+})
+.WithName("MetricasDashboard").WithTags("Metricas")
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
 // Historial de compras de un cliente (Admin/Recepcionista).
 app.MapGet("/api/clientes/{clienteId:guid}/ventas", async (Guid clienteId, ListarVentasDeCliente uc) =>
@@ -718,6 +732,16 @@ app.MapGet("/api/portal/mis-recordatorios", async (ClaimsPrincipal user, int? di
     return Results.Ok(mios);
 })
 .WithName("MisRecordatorios").WithTags("Portal").RequireAuthorization(p => p.RequireRole(DuenoMascota));
+
+// Mis compras/cobros (lo que el dueño pagó: consultas, artículos). El clienteId sale del
+// token, así el dueño solo ve lo suyo.
+app.MapGet("/api/portal/mis-compras", async (ClaimsPrincipal user, ListarVentasDeCliente uc) =>
+{
+    var datos = DatosDueno(user);
+    if (datos is null) return Results.BadRequest(new { error = "Token inválido." });
+    return Results.Ok(await uc.EjecutarAsync(datos.Value.clienteId));
+})
+.WithName("MisCompras").WithTags("Portal").RequireAuthorization(p => p.RequireRole(DuenoMascota));
 
 app.Run();
 
