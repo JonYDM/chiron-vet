@@ -11,7 +11,12 @@ public sealed record MascotaConDuenoDto(
     EspecieMascota Especie,
     string? Raza,
     SexoMascota Sexo,
+    DateOnly? FechaNacimiento,
+    decimal? PesoKg,
+    string? Padecimientos,
+    bool? Esterilizado,
     bool Activo,
+    string? FotoPerfilUrl,
     Guid ClienteId,
     string ClienteNombre);
 
@@ -54,7 +59,8 @@ public sealed class ListarMascotasDeVeterinaria
         return mascotas
             .OrderBy(m => m.Nombre)
             .Select(m => new MascotaConDuenoDto(
-                m.Id, m.Nombre, m.Especie, m.Raza, m.Sexo, m.Activo, m.ClienteId,
+                m.Id, m.Nombre, m.Especie, m.Raza, m.Sexo, m.FechaNacimiento, m.PesoKg,
+                m.Padecimientos, m.Esterilizado, m.Activo, m.FotoPerfilUrl, m.ClienteId,
                 nombrePorCliente.TryGetValue(m.ClienteId, out string? n) ? n : "—"))
             .ToList();
     }
