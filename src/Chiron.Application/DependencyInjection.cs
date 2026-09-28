@@ -53,6 +53,7 @@ public static class DependencyInjection
         services.AddTransient<ResumenVentas>();
 
         services.AddTransient<Login>();
+        services.AddTransient<Identificar>();
         services.AddTransient<CrearUsuarioStaff>();
         services.AddTransient<CrearUsuarioDueno>();
         services.AddTransient<ResetearPin>();

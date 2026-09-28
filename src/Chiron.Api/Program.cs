@@ -205,6 +205,12 @@ app.MapPost("/api/auth/login", async (LoginComando cmd, Login uc) =>
     ToHttp(await uc.EjecutarAsync(cmd)))
 .WithName("Login").WithTags("Auth").AllowAnonymous();
 
+// Paso 1 del login (estilo Nubank): valida el identificador y devuelve el primer
+// nombre para saludar antes de pedir el PIN. Público. Devuelve { existe, nombre }.
+app.MapPost("/api/auth/identificar", async (IdentificarComando cmd, Identificar uc) =>
+    ToHttp(await uc.EjecutarAsync(cmd)))
+.WithName("Identificar").WithTags("Auth").AllowAnonymous();
+
 // ═══════════════════ SUPERADMIN (solo dueño de Chiron) ═══════════════════
 // Alta de veterinaria (protegido: solo SuperAdmin). Antes estaba abierto.
 app.MapPost("/api/admin/veterinarias", async (CrearVeterinariaDto dto, IRepository<Veterinaria> repo) =>
