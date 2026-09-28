@@ -54,6 +54,17 @@ public sealed class GenerarRecordatorios
         Guid veterinariaId, int diasAnticipacion = 30, CancellationToken cancellationToken = default)
         => DetectarInternoAsync(veterinariaId, diasAnticipacion, respetarConsentimiento: false, cancellationToken);
 
+    /// <summary>
+    /// Recordatorios para el STAFF de la clínica (panel/dashboard): incluye TODOS los
+    /// pendientes de la veterinaria sin filtrar por consentimiento de WhatsApp, porque el
+    /// staff necesita saber a quién contactar aunque sea por llamada o en persona (el
+    /// consentimiento aplica solo al ENVÍO automático de notificaciones, no a la consulta
+    /// interna del equipo). El endpoint ya restringe por rol y por el veterinariaId del token.
+    /// </summary>
+    public Task<IReadOnlyList<RecordatorioDetectado>> DetectarParaStaffAsync(
+        Guid veterinariaId, int diasAnticipacion = 30, CancellationToken cancellationToken = default)
+        => DetectarInternoAsync(veterinariaId, diasAnticipacion, respetarConsentimiento: false, cancellationToken);
+
     // Lógica común. Es PRIVADA: el flag no se expone al exterior, así no puede
     // manipularse desde la API/navegador. Solo los dos métodos públicos lo fijan.
     private async Task<IReadOnlyList<RecordatorioDetectado>> DetectarInternoAsync(

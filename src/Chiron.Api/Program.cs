@@ -641,6 +641,18 @@ app.MapPost("/api/veterinarias/{veterinariaId:guid}/recordatorios/enviar", async
 .WithName("EnviarRecordatorios").WithTags("Recordatorios")
 .RequireAuthorization(p => p.RequireRole(Administrador));
 
+// Lista los recordatorios pendientes de la veterinaria para que el STAFF los vea y actúe
+// (el "gancho": saber a quién recordar para que el cliente vuelva). El veterinariaId sale
+// del token (aislamiento multi-tenant). Lo pueden ver los roles operativos y el admin.
+app.MapGet("/api/recordatorios", async (ClaimsPrincipal user, int? dias, GenerarRecordatorios uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "El token no tiene veterinariaId." });
+    return Results.Ok(await uc.DetectarParaStaffAsync(veterinariaId, dias ?? 30));
+})
+.WithName("ListarRecordatorios").WithTags("Recordatorios")
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
+
 // ═══════════════════ PORTAL DEL DUEÑO DE MASCOTA (H10.1, H10.2) ═══════════════════
 // El dueño ve SOLO sus datos. El clienteId se toma del token (no de la URL),
 // así es imposible que un dueño consulte los datos de otro.
