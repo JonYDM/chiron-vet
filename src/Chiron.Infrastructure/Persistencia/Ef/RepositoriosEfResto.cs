@@ -46,6 +46,12 @@ public sealed class CitaRepositorioEf : RepositorioEf<Cita>, ICitaRepository
         => await Conjunto.Where(c => c.VeterinariaId == veterinariaId
                 && c.Estado == EstadoCita.Programada && c.FechaHora >= desde)
             .OrderBy(c => c.FechaHora).ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Cita>> ListarPorVeterinariaAsync(
+        Guid veterinariaId, EstadoCita? estado, CancellationToken cancellationToken = default)
+        => await Conjunto.Where(c => c.VeterinariaId == veterinariaId
+                && (estado == null || c.Estado == estado))
+            .OrderByDescending(c => c.FechaHora).ToListAsync(cancellationToken);
 }
 
 /// <summary>Implementación EF Core de IProductoRepository.</summary>

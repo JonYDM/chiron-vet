@@ -30,4 +30,15 @@ public sealed class CitaRepositorioEnMemoria : RepositorioEnMemoria<Cita>, ICita
             .OrderBy(c => c.FechaHora)
             .ToList();
     }
+
+    public async Task<IReadOnlyList<Cita>> ListarPorVeterinariaAsync(
+        Guid veterinariaId, EstadoCita? estado, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<Cita> todas = await ObtenerTodosAsync(cancellationToken);
+        return todas
+            .Where(c => c.VeterinariaId == veterinariaId
+                        && (estado == null || c.Estado == estado))
+            .OrderByDescending(c => c.FechaHora)
+            .ToList();
+    }
 }
