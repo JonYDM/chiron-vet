@@ -67,6 +67,13 @@ public sealed class ChironDbContext : DbContext
                 linea.Property(l => l.PrecioUnitario).HasPrecision(18, 2);
                 linea.WithOwner();
             });
+            // Cargos cobrados en la venta (consultas/servicios), también owned.
+            venta.Navigation(e => e.Cargos).HasField("_cargos").UsePropertyAccessMode(PropertyAccessMode.Field);
+            venta.OwnsMany(e => e.Cargos, cargo =>
+            {
+                cargo.Property(c => c.Monto).HasPrecision(18, 2);
+                cargo.WithOwner();
+            });
         });
 
         // Cargo (cuenta por cobrar): clave + monto con precisión monetaria.

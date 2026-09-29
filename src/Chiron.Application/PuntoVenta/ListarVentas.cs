@@ -10,7 +10,10 @@ public sealed record LineaVentaDto(
     decimal PrecioUnitario,
     decimal Subtotal);
 
-/// <summary>Venta para exponer por la API (con sus líneas).</summary>
+/// <summary>Cargo (consulta/servicio) cobrado en una venta, para exponer por la API.</summary>
+public sealed record VentaCargoDto(Guid CargoId, string Concepto, decimal Monto);
+
+/// <summary>Venta para exponer por la API (con sus líneas de producto y cargos).</summary>
 public sealed record VentaDto(
     Guid Id,
     Guid? ClienteId,
@@ -19,7 +22,8 @@ public sealed record VentaDto(
     MetodoPago MetodoPago,
     decimal? MontoRecibido,
     decimal? Cambio,
-    IReadOnlyList<LineaVentaDto> Lineas)
+    IReadOnlyList<LineaVentaDto> Lineas,
+    IReadOnlyList<VentaCargoDto> Cargos)
 {
     public static VentaDto Desde(Venta v) => new(
         v.Id,
@@ -30,7 +34,8 @@ public sealed record VentaDto(
         v.MontoRecibido,
         v.Cambio,
         v.Lineas.Select(l => new LineaVentaDto(
-            l.ProductoId, l.NombreProducto, l.Cantidad, l.PrecioUnitario, l.Subtotal)).ToList());
+            l.ProductoId, l.NombreProducto, l.Cantidad, l.PrecioUnitario, l.Subtotal)).ToList(),
+        v.Cargos.Select(c => new VentaCargoDto(c.CargoId, c.Concepto, c.Monto)).ToList());
 }
 
 /// <summary>
@@ -69,13 +74,15 @@ public sealed class ListarVentasDeCliente
     }
 }
 
-/// <summary>Resumen de ventas de un período: total, conteo y desglose por método de pago.</summary>
+/// <summary>Resumen de ventas de un período: total, conteo, desglose por método y por tipo.</summary>
 public sealed record ResumenVentasDto(
     decimal Total,
     int NumeroVentas,
     decimal Efectivo,
     decimal Tarjeta,
-    decimal Transferencia);
+    decimal Transferencia,
+    decimal TotalProductos,
+    decimal TotalConsultas);
 
 /// <summary>
 /// Caso de uso: resumen de ventas de una veterinaria en un rango de fechas. El cálculo
@@ -102,6 +109,8 @@ public sealed class ResumenVentas
             NumeroVentas: ventas.Count,
             Efectivo: PorMetodo(MetodoPago.Efectivo),
             Tarjeta: PorMetodo(MetodoPago.Tarjeta),
-            Transferencia: PorMetodo(MetodoPago.Transferencia));
+            Transferencia: PorMetodo(MetodoPago.Transferencia),
+            TotalProductos: ventas.Sum(v => v.TotalProductos),
+            TotalConsultas: ventas.Sum(v => v.TotalConsultas));
     }
 }

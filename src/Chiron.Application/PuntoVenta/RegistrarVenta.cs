@@ -69,6 +69,7 @@ public sealed class RegistrarVenta
 
         // ── Cargos (cuentas por cobrar) ──
         var cargosACobrar = new List<Chiron.Domain.Cobros.Cargo>(cargoIds.Count);
+        var ventaCargos = new List<VentaCargo>(cargoIds.Count);
         foreach (Guid cargoId in cargoIds)
         {
             Chiron.Domain.Cobros.Cargo? cargo = await _cargos.ObtenerPorIdAsync(cargoId, cancellationToken);
@@ -79,15 +80,14 @@ public sealed class RegistrarVenta
             if (cargo.Estado != Chiron.Domain.Cobros.EstadoCargo.Pendiente)
                 return Result<VentaResultado>.Falla("Un cargo ya no está pendiente de cobro.");
 
-            // El cargo es una línea de venta sin producto (ProductoId vacío), cantidad 1.
-            lineas.Add(new LineaVenta(Guid.Empty, cargo.Concepto, 1, cargo.Monto));
+            ventaCargos.Add(new VentaCargo(cargo.Id, cargo.Concepto, cargo.Monto));
             cargosACobrar.Add(cargo);
         }
 
         // Construir la venta (valida que el monto recibido cubra el total).
         Result<Venta> ventaResult = Venta.Crear(
             comando.VeterinariaId, comando.ClienteId, lineas,
-            comando.MetodoPago, comando.MontoRecibido);
+            comando.MetodoPago, comando.MontoRecibido, ventaCargos);
         if (!ventaResult.EsExito)
             return Result<VentaResultado>.Falla(ventaResult.Error!);
 
