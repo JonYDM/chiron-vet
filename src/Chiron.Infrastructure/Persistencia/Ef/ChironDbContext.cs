@@ -33,7 +33,13 @@ public sealed class ChironDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Todas las entidades usan Id (Guid) heredado de EntidadBase como clave.
-        modelBuilder.Entity<Veterinaria>().HasKey(e => e.Id);
+        modelBuilder.Entity<Veterinaria>(vet =>
+        {
+            vet.HasKey(e => e.Id);
+            // Las veterinarias existentes quedan en plan Mensual al migrar.
+            vet.Property(e => e.Plan).HasDefaultValue(PlanSuscripcion.Mensual);
+            vet.Property(e => e.Direccion).HasMaxLength(250);
+        });
         modelBuilder.Entity<Usuario>().HasKey(e => e.Id);
         modelBuilder.Entity<Cliente>().HasKey(e => e.Id);
         modelBuilder.Entity<Mascota>().HasKey(e => e.Id);
