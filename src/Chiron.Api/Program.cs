@@ -304,6 +304,11 @@ app.MapGet("/api/admin/veterinarias", async (IRepository<Veterinaria> repo) =>
     Results.Ok(await repo.ObtenerTodosAsync()))
 .WithName("ListarVeterinarias").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
 
+// Métricas globales de la plataforma para el SuperAdmin (dashboard).
+app.MapGet("/api/admin/metricas", async (Chiron.Application.Metricas.MetricasSuperAdmin uc) =>
+    Results.Ok(await uc.EjecutarAsync()))
+.WithName("MetricasSuperAdmin").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
+
 // Configura si el Administrador de una veterinaria puede operar (true) o es supervisor puro (false).
 app.MapPost("/api/admin/veterinarias/{id:guid}/admin-operativo", async (Guid id, AdminOperativoDto dto, IRepository<Veterinaria> repo) =>
 {
