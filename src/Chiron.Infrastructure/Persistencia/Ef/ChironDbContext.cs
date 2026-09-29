@@ -1,5 +1,6 @@
 using Chiron.Domain.Citas;
 using Chiron.Domain.Clientes;
+using Chiron.Domain.Cobros;
 using Chiron.Domain.Expedientes;
 using Chiron.Domain.Mascotas;
 using Chiron.Domain.PuntoVenta;
@@ -27,6 +28,7 @@ public sealed class ChironDbContext : DbContext
     public DbSet<Cita> Citas => Set<Cita>();
     public DbSet<Producto> Productos => Set<Producto>();
     public DbSet<Venta> Ventas => Set<Venta>();
+    public DbSet<Cargo> Cargos => Set<Cargo>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -65,6 +67,20 @@ public sealed class ChironDbContext : DbContext
                 linea.Property(l => l.PrecioUnitario).HasPrecision(18, 2);
                 linea.WithOwner();
             });
+            // Cargos cobrados en la venta (consultas/servicios), también owned.
+            venta.Navigation(e => e.Cargos).HasField("_cargos").UsePropertyAccessMode(PropertyAccessMode.Field);
+            venta.OwnsMany(e => e.Cargos, cargo =>
+            {
+                cargo.Property(c => c.Monto).HasPrecision(18, 2);
+                cargo.WithOwner();
+            });
+        });
+
+        // Cargo (cuenta por cobrar): clave + monto con precisión monetaria.
+        modelBuilder.Entity<Cargo>(cargo =>
+        {
+            cargo.HasKey(e => e.Id);
+            cargo.Property(e => e.Monto).HasPrecision(18, 2);
         });
 
         base.OnModelCreating(modelBuilder);
