@@ -1,7 +1,9 @@
 using Chiron.Application.Citas;
+using Chiron.Application.Cobros;
 using Chiron.Application.Expedientes;
 using Chiron.Application.PuntoVenta;
 using Chiron.Domain.Citas;
+using Chiron.Domain.Cobros;
 using Chiron.Domain.Expedientes;
 using Chiron.Domain.PuntoVenta;
 using Microsoft.EntityFrameworkCore;
@@ -80,4 +82,16 @@ public sealed class VentaRepositorioEf : RepositorioEf<Venta>, IVentaRepository
         => await Conjunto.Include(v => v.Lineas)
             .Where(v => v.ClienteId == clienteId)
             .OrderByDescending(v => v.FechaHora).ToListAsync(cancellationToken);
+}
+
+/// <summary>Implementación EF Core de ICargoRepository.</summary>
+public sealed class CargoRepositorioEf : RepositorioEf<Cargo>, ICargoRepository
+{
+    public CargoRepositorioEf(ChironDbContext contexto) : base(contexto) { }
+
+    public async Task<IReadOnlyList<Cargo>> ObtenerPendientesAsync(
+        Guid veterinariaId, CancellationToken cancellationToken = default)
+        => await Conjunto
+            .Where(c => c.VeterinariaId == veterinariaId && c.Estado == EstadoCargo.Pendiente)
+            .OrderByDescending(c => c.FechaCreacion).ToListAsync(cancellationToken);
 }

@@ -68,6 +68,9 @@ public static class DependencyInjection
 
         services.AddTransient<Chiron.Application.Metricas.MetricasDashboard>();
 
+        services.AddTransient<Chiron.Application.Cobros.GenerarCargo>();
+        services.AddTransient<Chiron.Application.Cobros.ListarCargosPendientes>();
+
         return services;
     }
 }

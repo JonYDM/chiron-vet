@@ -566,6 +566,30 @@ app.MapGet("/api/mascotas/{mascotaId:guid}/expediente", async (Guid mascotaId, V
 .WithName("VerExpediente").WithTags("Expediente")
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
+// ═══════════════════ COBROS (cargos por consulta/servicio) ═══════════════════
+// Generar un cargo PENDIENTE (lo hace el staff clínico al registrar un servicio). El
+// veterinariaId sale del token; el clienteId se deriva de la mascota.
+app.MapPost("/api/cargos", async (CrearCargoDto dto, ClaimsPrincipal user, Chiron.Application.Cobros.GenerarCargo uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+    var comando = new Chiron.Application.Cobros.GenerarCargoComando(
+        veterinariaId, dto.MascotaId, dto.Concepto, dto.Monto, dto.RegistroMedicoId);
+    return ToHttp(await uc.EjecutarAsync(comando));
+})
+.WithName("GenerarCargo").WithTags("Cobros")
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario));
+
+// Listar cargos pendientes de la veterinaria (para la caja: Admin/Recepcionista).
+app.MapGet("/api/cargos/pendientes", async (ClaimsPrincipal user, Chiron.Application.Cobros.ListarCargosPendientes uc) =>
+{
+    if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
+        return Results.BadRequest(new { error = "Token sin veterinaria válida." });
+    return Results.Ok(await uc.EjecutarAsync(veterinariaId));
+})
+.WithName("ListarCargosPendientes").WithTags("Cobros")
+.RequireAuthorization(p => p.RequireRole(Administrador, Recepcionista));
+
 // ═══════════════════ CITAS (staff) ═══════════════════
 app.MapPost("/api/citas", async (AgendarCitaComando cmd, AgendarCita uc) =>
     ToHttp(await uc.EjecutarAsync(cmd)))
@@ -778,6 +802,7 @@ record ResetearPinDto(string NuevoPin);
 
 // ── DTOs de las mejoras (mejoras-mvp) ──
 record CambiarEstadoCitaDto(AccionCita Accion);
+record CrearCargoDto(Guid MascotaId, string Concepto, decimal Monto, Guid? RegistroMedicoId);
 record EditarProductoDto(string Nombre, CategoriaProducto Categoria, decimal Precio);
 record ReabastecerStockDto(int Cantidad);
 record CrearClienteDto(string Nombre, string Telefono, OrigenCliente Origen);

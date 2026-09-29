@@ -1,5 +1,6 @@
 using Chiron.Application.Citas;
 using Chiron.Application.Clientes;
+using Chiron.Application.Cobros;
 using Chiron.Application.Common;
 using Chiron.Application.Expedientes;
 using Chiron.Application.Mascotas;
@@ -7,6 +8,7 @@ using Chiron.Application.PuntoVenta;
 using Chiron.Application.Recordatorios;
 using Chiron.Application.Seguridad;
 using Chiron.Domain.Clientes;
+using Chiron.Domain.Cobros;
 using Chiron.Domain.Mascotas;
 using Chiron.Domain.Usuarios;
 using Chiron.Infrastructure.Almacenamiento;
@@ -62,6 +64,10 @@ public static class DependencyInjection
         services.AddSingleton<IUsuarioRepository>(sp => sp.GetRequiredService<UsuarioRepositorioEnMemoria>());
         services.AddSingleton<IRepository<Usuario>>(sp => sp.GetRequiredService<UsuarioRepositorioEnMemoria>());
 
+        services.AddSingleton<CargoRepositorioEnMemoria>();
+        services.AddSingleton<ICargoRepository>(sp => sp.GetRequiredService<CargoRepositorioEnMemoria>());
+        services.AddSingleton<IRepository<Cargo>>(sp => sp.GetRequiredService<CargoRepositorioEnMemoria>());
+
         AddMensajeria(services);
         AddSeguridad(services, jwtOpciones);
         return services;
@@ -83,6 +89,7 @@ public static class DependencyInjection
         services.AddScoped<IProductoRepository, ProductoRepositorioEf>();
         services.AddScoped<IVentaRepository, VentaRepositorioEf>();
         services.AddScoped<IUsuarioRepository, UsuarioRepositorioEf>();
+        services.AddScoped<ICargoRepository, CargoRepositorioEf>();
 
         AddMensajeria(services);
         AddSeguridad(services, jwtOpciones);
