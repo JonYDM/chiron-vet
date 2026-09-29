@@ -12,11 +12,12 @@ public sealed record UsuarioDto(
     string Nombre,
     RolUsuario Rol,
     bool Activo,
-    Guid? ClienteId)
+    Guid? ClienteId,
+    Guid VeterinariaId)
 {
     /// <summary>Mapea una entidad Usuario a su DTO seguro.</summary>
     public static UsuarioDto Desde(Usuario u) =>
-        new(u.Id, u.NombreUsuario, u.Nombre, u.Rol, u.Activo, u.ClienteId);
+        new(u.Id, u.NombreUsuario, u.Nombre, u.Rol, u.Activo, u.ClienteId, u.VeterinariaId);
 }
 
 /// <summary>
