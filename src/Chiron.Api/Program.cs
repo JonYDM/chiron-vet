@@ -232,15 +232,50 @@ app.MapPost("/api/auth/identificar", async (IdentificarComando cmd, Identificar 
 .WithName("Identificar").WithTags("Auth").AllowAnonymous();
 
 // ═══════════════════ SUPERADMIN (solo dueño de Chiron) ═══════════════════
-// Alta de veterinaria (protegido: solo SuperAdmin). Antes estaba abierto.
+// Alta de veterinaria (protegido: solo SuperAdmin). Incluye dirección y plan de suscripción.
 app.MapPost("/api/admin/veterinarias", async (CrearVeterinariaDto dto, IRepository<Veterinaria> repo) =>
 {
-    Result<Veterinaria> r = Veterinaria.Crear(dto.Nombre, dto.Telefono);
+    Result<Veterinaria> r = Veterinaria.Crear(
+        dto.Nombre, dto.Telefono, dto.Direccion, dto.Plan ?? PlanSuscripcion.Mensual);
     if (!r.EsExito) return Results.BadRequest(new { error = r.Error });
     await repo.AgregarAsync(r.Valor!);
-    return Results.Ok(new { r.Valor!.Id, r.Valor.Nombre, r.Valor.Activa });
+    return Results.Ok(new { r.Valor!.Id, r.Valor.Nombre, r.Valor.Activa, r.Valor.FechaRenovacion });
 })
 .WithName("CrearVeterinaria").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
+
+// Editar datos generales de la veterinaria (nombre, teléfono, dirección, plan).
+app.MapPut("/api/admin/veterinarias/{id:guid}", async (Guid id, EditarVeterinariaDto dto, IRepository<Veterinaria> repo) =>
+{
+    Veterinaria? vet = await repo.ObtenerPorIdAsync(id);
+    if (vet is null) return Results.NotFound();
+    Result<bool> r = vet.Editar(dto.Nombre, dto.Telefono, dto.Direccion, dto.Plan);
+    if (!r.EsExito) return Results.BadRequest(new { error = r.Error });
+    await repo.ActualizarAsync(vet);
+    return Results.Ok(vet);
+})
+.WithName("EditarVeterinaria").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
+
+// Renovar la suscripción (pago recibido): extiende un periodo según el plan y reactiva.
+app.MapPost("/api/admin/veterinarias/{id:guid}/renovar", async (Guid id, IRepository<Veterinaria> repo) =>
+{
+    Veterinaria? vet = await repo.ObtenerPorIdAsync(id);
+    if (vet is null) return Results.NotFound();
+    vet.Renovar(DateOnly.FromDateTime(DateTime.UtcNow));
+    await repo.ActualizarAsync(vet);
+    return Results.Ok(new { vet.Id, vet.Activa, vet.FechaRenovacion });
+})
+.WithName("RenovarVeterinaria").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
+
+// Ajuste manual de la fecha de renovación (pagos irregulares, prórrogas).
+app.MapPost("/api/admin/veterinarias/{id:guid}/renovacion", async (Guid id, AjustarRenovacionDto dto, IRepository<Veterinaria> repo) =>
+{
+    Veterinaria? vet = await repo.ObtenerPorIdAsync(id);
+    if (vet is null) return Results.NotFound();
+    vet.AjustarRenovacion(dto.Fecha);
+    await repo.ActualizarAsync(vet);
+    return Results.Ok(new { vet.Id, vet.FechaRenovacion });
+})
+.WithName("AjustarRenovacionVeterinaria").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
 
 // Activar veterinaria (pago recibido).
 app.MapPost("/api/admin/veterinarias/{id:guid}/activar", async (Guid id, IRepository<Veterinaria> repo) =>
@@ -789,7 +824,9 @@ app.MapGet("/api/portal/mis-compras", async (ClaimsPrincipal user, ListarVentasD
 app.Run();
 
 // DTO de entrada para crear veterinaria.
-record CrearVeterinariaDto(string Nombre, string Telefono);
+record CrearVeterinariaDto(string Nombre, string Telefono, string? Direccion, PlanSuscripcion? Plan);
+record EditarVeterinariaDto(string Nombre, string Telefono, string? Direccion, PlanSuscripcion Plan);
+record AjustarRenovacionDto(DateOnly Fecha);
 
 // DTO para que el Administrador cree staff de su veterinaria (el VeterinariaId sale del token).
 record CrearStaffDto(string NombreUsuario, string Nombre, string Pin, RolUsuario Rol);
