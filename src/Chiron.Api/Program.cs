@@ -9,6 +9,7 @@ using Chiron.Application.Mascotas;
 using Chiron.Application.PuntoVenta;
 using Chiron.Application.Recordatorios;
 using Chiron.Application.Seguridad;
+using Chiron.Application.Sucursales;
 using Chiron.Domain.Common;
 using Chiron.Domain.Citas;
 using Chiron.Domain.Clientes;
@@ -232,77 +233,63 @@ app.MapPost("/api/auth/identificar", async (IdentificarComando cmd, Identificar 
 .WithName("Identificar").WithTags("Auth").AllowAnonymous();
 
 // ═══════════════════ SUPERADMIN (solo dueño de Chiron) ═══════════════════
-// Alta de veterinaria (protegido: solo SuperAdmin). Incluye dirección y plan de suscripción.
-app.MapPost("/api/admin/veterinarias", async (CrearVeterinariaDto dto, IRepository<Veterinaria> repo) =>
-{
-    Result<Veterinaria> r = Veterinaria.Crear(
-        dto.Nombre, dto.Telefono, dto.Direccion, dto.Plan ?? PlanSuscripcion.Mensual);
-    if (!r.EsExito) return Results.BadRequest(new { error = r.Error });
-    await repo.AgregarAsync(r.Valor!);
-    return Results.Ok(new { r.Valor!.Id, r.Valor.Nombre, r.Valor.Activa, r.Valor.FechaRenovacion });
-})
+// Alta de veterinaria (protegido: solo SuperAdmin). Crea también su sucursal Matriz con plan y precio.
+app.MapPost("/api/admin/veterinarias", async (CrearVeterinariaDto dto, GestionSucursales uc) =>
+    ToHttp(await uc.CrearVeterinariaAsync(dto.Nombre, dto.Telefono, dto.Direccion, dto.Plan, dto.Precio)))
 .WithName("CrearVeterinaria").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
 
-// Editar datos generales de la veterinaria (nombre, teléfono, dirección, plan).
-app.MapPut("/api/admin/veterinarias/{id:guid}", async (Guid id, EditarVeterinariaDto dto, IRepository<Veterinaria> repo) =>
-{
-    Veterinaria? vet = await repo.ObtenerPorIdAsync(id);
-    if (vet is null) return Results.NotFound();
-    Result<bool> r = vet.Editar(dto.Nombre, dto.Telefono, dto.Direccion, dto.Plan);
-    if (!r.EsExito) return Results.BadRequest(new { error = r.Error });
-    await repo.ActualizarAsync(vet);
-    return Results.Ok(vet);
-})
+// Editar datos generales de la veterinaria. Dirección y plan se aplican a su Matriz.
+app.MapPut("/api/admin/veterinarias/{id:guid}", async (Guid id, EditarVeterinariaDto dto, GestionSucursales uc) =>
+    ToHttp(await uc.EditarVeterinariaAsync(id, dto.Nombre, dto.Telefono, dto.Direccion, dto.Plan)))
 .WithName("EditarVeterinaria").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
 
-// Renovar la suscripción (pago recibido): extiende un periodo según el plan y reactiva.
-app.MapPost("/api/admin/veterinarias/{id:guid}/renovar", async (Guid id, IRepository<Veterinaria> repo) =>
-{
-    Veterinaria? vet = await repo.ObtenerPorIdAsync(id);
-    if (vet is null) return Results.NotFound();
-    vet.Renovar(DateOnly.FromDateTime(DateTime.UtcNow));
-    await repo.ActualizarAsync(vet);
-    return Results.Ok(new { vet.Id, vet.Activa, vet.FechaRenovacion });
-})
+// Compatibilidad: renovar/ajustar "la veterinaria" = su Matriz.
+app.MapPost("/api/admin/veterinarias/{id:guid}/renovar", async (Guid id, GestionSucursales uc) =>
+    ToHttp(await uc.RenovarMatrizAsync(id)))
 .WithName("RenovarVeterinaria").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
 
-// Ajuste manual de la fecha de renovación (pagos irregulares, prórrogas).
-app.MapPost("/api/admin/veterinarias/{id:guid}/renovacion", async (Guid id, AjustarRenovacionDto dto, IRepository<Veterinaria> repo) =>
-{
-    Veterinaria? vet = await repo.ObtenerPorIdAsync(id);
-    if (vet is null) return Results.NotFound();
-    vet.AjustarRenovacion(dto.Fecha);
-    await repo.ActualizarAsync(vet);
-    return Results.Ok(new { vet.Id, vet.FechaRenovacion });
-})
+app.MapPost("/api/admin/veterinarias/{id:guid}/renovacion", async (Guid id, AjustarRenovacionDto dto, GestionSucursales uc) =>
+    ToHttp(await uc.AjustarRenovacionMatrizAsync(id, dto.Fecha)))
 .WithName("AjustarRenovacionVeterinaria").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
 
-// Activar veterinaria (pago recibido).
-app.MapPost("/api/admin/veterinarias/{id:guid}/activar", async (Guid id, IRepository<Veterinaria> repo) =>
-{
-    Veterinaria? vet = await repo.ObtenerPorIdAsync(id);
-    if (vet is null) return Results.NotFound();
-    vet.Activar();
-    await repo.ActualizarAsync(vet);
-    return Results.Ok(new { vet.Id, vet.Activa });
-})
+// Activar/desactivar la veterinaria completa (bloquea el acceso de sus usuarios). La Matriz la sigue.
+app.MapPost("/api/admin/veterinarias/{id:guid}/activar", async (Guid id, GestionSucursales uc) =>
+    ToHttp(await uc.CambiarEstadoVeterinariaAsync(id, activar: true)))
 .WithName("ActivarVeterinaria").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
 
-// Desactivar veterinaria (impago) — bloquea el acceso de sus usuarios.
-app.MapPost("/api/admin/veterinarias/{id:guid}/desactivar", async (Guid id, IRepository<Veterinaria> repo) =>
-{
-    Veterinaria? vet = await repo.ObtenerPorIdAsync(id);
-    if (vet is null) return Results.NotFound();
-    vet.Desactivar();
-    await repo.ActualizarAsync(vet);
-    return Results.Ok(new { vet.Id, vet.Activa });
-})
+app.MapPost("/api/admin/veterinarias/{id:guid}/desactivar", async (Guid id, GestionSucursales uc) =>
+    ToHttp(await uc.CambiarEstadoVeterinariaAsync(id, activar: false)))
 .WithName("DesactivarVeterinaria").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
 
-// Listar todas las veterinarias.
-app.MapGet("/api/admin/veterinarias", async (IRepository<Veterinaria> repo) =>
-    Results.Ok(await repo.ObtenerTodosAsync()))
+// Listar todas las veterinarias con sus sucursales.
+app.MapGet("/api/admin/veterinarias", async (GestionSucursales uc) =>
+    Results.Ok(await uc.ListarAsync()))
 .WithName("ListarVeterinarias").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
+
+// ═══════════════════ SUCURSALES (unidad de cobro, HU-SU1..SU3) ═══════════════════
+app.MapPost("/api/admin/veterinarias/{id:guid}/sucursales", async (Guid id, CrearSucursalComando dto, GestionSucursales uc) =>
+    ToHttp(await uc.CrearSucursalAsync(id, dto)))
+.WithName("CrearSucursal").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
+
+app.MapPut("/api/admin/sucursales/{id:guid}", async (Guid id, EditarSucursalComando dto, GestionSucursales uc) =>
+    ToHttp(await uc.EditarSucursalAsync(id, dto)))
+.WithName("EditarSucursal").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
+
+app.MapPost("/api/admin/sucursales/{id:guid}/renovar", async (Guid id, GestionSucursales uc) =>
+    ToHttp(await uc.RenovarAsync(id)))
+.WithName("RenovarSucursal").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
+
+app.MapPost("/api/admin/sucursales/{id:guid}/renovacion", async (Guid id, AjustarRenovacionDto dto, GestionSucursales uc) =>
+    ToHttp(await uc.AjustarRenovacionAsync(id, dto.Fecha)))
+.WithName("AjustarRenovacionSucursal").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
+
+app.MapPost("/api/admin/sucursales/{id:guid}/activar", async (Guid id, GestionSucursales uc) =>
+    ToHttp(await uc.CambiarEstadoAsync(id, activar: true)))
+.WithName("ActivarSucursal").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
+
+app.MapPost("/api/admin/sucursales/{id:guid}/desactivar", async (Guid id, GestionSucursales uc) =>
+    ToHttp(await uc.CambiarEstadoAsync(id, activar: false)))
+.WithName("DesactivarSucursal").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
 
 // Métricas globales de la plataforma para el SuperAdmin (dashboard).
 app.MapGet("/api/admin/metricas", async (Chiron.Application.Metricas.MetricasSuperAdmin uc) =>
@@ -854,8 +841,8 @@ app.MapGet("/api/portal/mis-compras", async (ClaimsPrincipal user, ListarVentasD
 app.Run();
 
 // DTO de entrada para crear veterinaria.
-record CrearVeterinariaDto(string Nombre, string Telefono, string? Direccion, PlanSuscripcion? Plan);
-record EditarVeterinariaDto(string Nombre, string Telefono, string? Direccion, PlanSuscripcion Plan);
+record CrearVeterinariaDto(string Nombre, string Telefono, string? Direccion, PlanSuscripcion? Plan, decimal? Precio);
+record EditarVeterinariaDto(string Nombre, string Telefono, string? Direccion, PlanSuscripcion? Plan);
 record AjustarRenovacionDto(DateOnly Fecha);
 
 // DTO para que el Administrador cree staff de su veterinaria (el VeterinariaId sale del token).

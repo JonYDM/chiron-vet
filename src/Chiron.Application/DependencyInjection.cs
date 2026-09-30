@@ -59,6 +59,7 @@ public static class DependencyInjection
         services.AddTransient<Identificar>();
         services.AddTransient<CrearUsuarioStaff>();
         services.AddTransient<AltaStaff>();
+        services.AddTransient<Chiron.Application.Sucursales.GestionSucursales>();
         services.AddTransient<ObtenerDetalleUsuario>();
         services.AddTransient<EditarDatosUsuario>();
         services.AddTransient<CrearUsuarioDueno>();
