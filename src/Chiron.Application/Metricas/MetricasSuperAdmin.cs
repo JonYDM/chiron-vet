@@ -38,7 +38,13 @@ public sealed record MetricasSuperAdminDto(
     int VeterinariasSinAdmin,
     IReadOnlyList<RenovacionProximaDto> ProximasRenovaciones,
     int TotalSucursales,
-    int SucursalesActivas);
+    int SucursalesActivas,
+    decimal GanadoMes,
+    decimal GanadoMesAnterior,
+    decimal GanadoHistorico,
+    decimal IngresoMensualEsperado,
+    decimal MontoPorCobrar,
+    int PagosMes);
 
 /// <summary>
 /// Caso de uso: métricas globales del SaaS para el SuperAdmin — suscripciones por sucursal
@@ -85,6 +91,19 @@ public sealed class MetricasSuperAdmin
                 x.Suc.Id, x.Suc.Nombre, x.Suc.EsMatriz, x.Suc.Precio))
             .ToList();
 
+        // ── Ingresos (HU-SU4): solo pagos no anulados, por mes de FechaPago ──
+        var pagos = (await _sucursales.PagosAsync(cancellationToken)).Where(p => !p.Anulado).ToList();
+        DateOnly inicioMes = new(hoy.Year, hoy.Month, 1);
+        DateOnly inicioMesAnterior = inicioMes.AddMonths(-1);
+        var pagosMes = pagos.Where(p => p.FechaPago >= inicioMes).ToList();
+
+        // Ingreso mensual esperado: renta de las sucursales activas (anuales = precio / 12).
+        decimal esperado = cobrables
+            .Where(x => x.Suc.Activa)
+            .Sum(x => x.Suc.Plan == PlanSuscripcion.Anual ? x.Suc.Precio / 12m : x.Suc.Precio);
+        // Por cobrar: renta de las sucursales vencidas o que vencen en la ventana de aviso.
+        decimal porCobrar = cobrables.Where(x => Dias(x.Suc) <= DiasAviso).Sum(x => x.Suc.Precio);
+
         return new MetricasSuperAdminDto(
             TotalVeterinarias: vets.Count,
             VeterinariasActivas: vets.Count(v => v.Activa),
@@ -98,6 +117,12 @@ public sealed class MetricasSuperAdmin
             VeterinariasSinAdmin: vets.Count(v => v.Activa && !vetsConAdmin.Contains(v.Id)),
             ProximasRenovaciones: proximas,
             TotalSucursales: vets.Sum(v => v.Sucursales.Count),
-            SucursalesActivas: cobrables.Count(x => x.Suc.Activa));
+            SucursalesActivas: cobrables.Count(x => x.Suc.Activa),
+            GanadoMes: pagosMes.Sum(p => p.Monto),
+            GanadoMesAnterior: pagos.Where(p => p.FechaPago >= inicioMesAnterior && p.FechaPago < inicioMes).Sum(p => p.Monto),
+            GanadoHistorico: pagos.Sum(p => p.Monto),
+            IngresoMensualEsperado: Math.Round(esperado, 2),
+            MontoPorCobrar: porCobrar,
+            PagosMes: pagosMes.Count);
     }
 }

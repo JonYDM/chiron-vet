@@ -1,6 +1,7 @@
 using Chiron.Application.Common;
 using Chiron.Domain.Common;
 using Chiron.Domain.Sucursales;
+using Chiron.Domain.Suscripciones;
 using Chiron.Domain.Veterinarias;
 
 namespace Chiron.Application.Sucursales;
@@ -45,6 +46,25 @@ public sealed record CrearSucursalComando(
 public sealed record EditarSucursalComando(
     string Nombre, string? Direccion, string? Telefono, PlanSuscripcion Plan, decimal Precio);
 
+/// <summary>Datos opcionales del cobro al renovar (si no vienen: precio de la sucursal y hoy).</summary>
+public sealed record RenovarComando(decimal? Monto, DateOnly? FechaPago, string? Nota);
+
+/// <summary>Pago de suscripción para el historial de cobros.</summary>
+public sealed record PagoSuscripcionDto(
+    Guid Id,
+    Guid VeterinariaId,
+    string VeterinariaNombre,
+    Guid SucursalId,
+    string SucursalNombre,
+    bool EsMatriz,
+    decimal Monto,
+    DateOnly FechaPago,
+    PlanSuscripcion Plan,
+    DateOnly PeriodoDesde,
+    DateOnly PeriodoHasta,
+    string? Nota,
+    bool Anulado);
+
 /// <summary>
 /// Reglas de suscripción por sucursal (HU-SU1..SU3):
 ///  - Toda veterinaria tiene una Matriz; si falta (datos en memoria o viejos), se crea al vuelo
@@ -57,11 +77,14 @@ public sealed class GestionSucursales
 {
     private readonly IRepository<Veterinaria> _veterinarias;
     private readonly IRepository<Sucursal> _sucursales;
+    private readonly IRepository<PagoSuscripcion> _pagos;
 
-    public GestionSucursales(IRepository<Veterinaria> veterinarias, IRepository<Sucursal> sucursales)
+    public GestionSucursales(
+        IRepository<Veterinaria> veterinarias, IRepository<Sucursal> sucursales, IRepository<PagoSuscripcion> pagos)
     {
         _veterinarias = veterinarias;
         _sucursales = sucursales;
+        _pagos = pagos;
     }
 
     private static DateOnly Hoy() => DateOnly.FromDateTime(DateTime.UtcNow);
@@ -117,14 +140,77 @@ public sealed class GestionSucursales
     public Task<Result<SucursalDto>> EditarSucursalAsync(Guid id, EditarSucursalComando c, CancellationToken ct = default)
         => ConSucursalAsync(id, s => s.Editar(c.Nombre, c.Direccion, c.Telefono, c.Plan, c.Precio), ct);
 
-    /// <summary>Renueva un periodo. Si es la Matriz, además reactiva la veterinaria.</summary>
-    public async Task<Result<SucursalDto>> RenovarAsync(Guid id, CancellationToken ct = default)
+    /// <summary>
+    /// Renueva un periodo y REGISTRA EL PAGO (monto = precio de la sucursal si no se indica;
+    /// fecha = hoy si no se indica). Si es la Matriz, además reactiva la veterinaria.
+    /// </summary>
+    public async Task<Result<SucursalDto>> RenovarAsync(Guid id, RenovarComando? c = null, CancellationToken ct = default)
     {
-        Result<SucursalDto> r = await ConSucursalAsync(id, s => { s.Renovar(Hoy()); return Result<bool>.Exito(true); }, ct);
-        if (r.EsExito && r.Valor!.EsMatriz)
-            await CambiarEstadoVeterinariaInternoAsync(r.Valor.VeterinariaId, activar: true, ct);
+        Sucursal? s = await _sucursales.ObtenerPorIdAsync(id, ct);
+        if (s is null)
+            return Result<SucursalDto>.Falla("La sucursal no existe.");
+
+        DateOnly hoy = Hoy();
+        DateOnly fechaPago = c?.FechaPago ?? hoy;
+        if (fechaPago > hoy)
+            return Result<SucursalDto>.Falla("La fecha de pago no puede ser futura.");
+
+        // Se valida el pago ANTES de mover la fecha (si falla, no se renueva).
+        DateOnly vencimientoPrevio = s.FechaRenovacion;
+        (DateOnly desde, DateOnly hasta) = s.Renovar(hoy);
+        Result<PagoSuscripcion> pago = PagoSuscripcion.Registrar(
+            s.VeterinariaId, s.Id, c?.Monto ?? s.Precio, fechaPago, s.Plan, desde, hasta, c?.Nota);
+        if (!pago.EsExito)
+        {
+            s.AjustarRenovacion(vencimientoPrevio);
+            return Result<SucursalDto>.Falla(pago.Error!);
+        }
+
+        await _sucursales.ActualizarAsync(s, ct);
+        await _pagos.AgregarAsync(pago.Valor!, ct);
+        if (s.EsMatriz)
+            await CambiarEstadoVeterinariaInternoAsync(s.VeterinariaId, activar: true, ct);
+        return Result<SucursalDto>.Exito(SucursalDto.Desde(s));
+    }
+
+    /// <summary>Historial de pagos (más recientes primero), con nombres para mostrar.</summary>
+    public async Task<IReadOnlyList<PagoSuscripcionDto>> ListarPagosAsync(
+        DateOnly? desde, DateOnly? hasta, CancellationToken ct = default)
+    {
+        IReadOnlyList<VeterinariaConSucursalesDto> vets = await ListarAsync(ct);
+        var nombreVet = vets.ToDictionary(v => v.Id, v => v.Nombre);
+        var nombreSuc = vets.SelectMany(v => v.Sucursales).ToDictionary(s => s.Id, s => (s.Nombre, s.EsMatriz));
+
+        return (await _pagos.ObtenerTodosAsync(ct))
+            .Where(p => (desde is null || p.FechaPago >= desde) && (hasta is null || p.FechaPago <= hasta))
+            .OrderByDescending(p => p.FechaPago)
+            .ThenByDescending(p => p.FechaRegistro)
+            .Select(p =>
+            {
+                (string Nombre, bool EsMatriz) suc = nombreSuc.GetValueOrDefault(p.SucursalId, ("Sucursal", false));
+                return new PagoSuscripcionDto(
+                    p.Id, p.VeterinariaId, nombreVet.GetValueOrDefault(p.VeterinariaId, "Veterinaria"),
+                    p.SucursalId, suc.Nombre, suc.EsMatriz, p.Monto, p.FechaPago, p.Plan,
+                    p.PeriodoDesde, p.PeriodoHasta, p.Nota, p.Anulado);
+            })
+            .ToList();
+    }
+
+    /// <summary>Anula un pago mal capturado (deja de contar en ingresos; la fecha no se revierte).</summary>
+    public async Task<Result<bool>> AnularPagoAsync(Guid pagoId, CancellationToken ct = default)
+    {
+        PagoSuscripcion? p = await _pagos.ObtenerPorIdAsync(pagoId, ct);
+        if (p is null)
+            return Result<bool>.Falla("El pago no existe.");
+        Result<bool> r = p.Anular();
+        if (r.EsExito)
+            await _pagos.ActualizarAsync(p, ct);
         return r;
     }
+
+    /// <summary>Todos los pagos (para métricas de ingresos).</summary>
+    public Task<IReadOnlyList<PagoSuscripcion>> PagosAsync(CancellationToken ct = default)
+        => _pagos.ObtenerTodosAsync(ct);
 
     public Task<Result<SucursalDto>> AjustarRenovacionAsync(Guid id, DateOnly fecha, CancellationToken ct = default)
         => ConSucursalAsync(id, s => { s.AjustarRenovacion(fecha); return Result<bool>.Exito(true); }, ct);
@@ -144,7 +230,7 @@ public sealed class GestionSucursales
     public async Task<Result<SucursalDto>> RenovarMatrizAsync(Guid veterinariaId, CancellationToken ct = default)
     {
         Sucursal? m = await MatrizAsync(veterinariaId, ct);
-        return m is null ? Result<SucursalDto>.Falla("La veterinaria no existe.") : await RenovarAsync(m.Id, ct);
+        return m is null ? Result<SucursalDto>.Falla("La veterinaria no existe.") : await RenovarAsync(m.Id, null, ct);
     }
 
     public async Task<Result<SucursalDto>> AjustarRenovacionMatrizAsync(Guid veterinariaId, DateOnly fecha, CancellationToken ct = default)
