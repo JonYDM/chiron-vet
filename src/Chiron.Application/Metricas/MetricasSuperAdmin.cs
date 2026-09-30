@@ -1,20 +1,30 @@
-using Chiron.Application.Common;
 using Chiron.Application.Seguridad;
+using Chiron.Application.Sucursales;
 using Chiron.Domain.Usuarios;
 using Chiron.Domain.Veterinarias;
 
 namespace Chiron.Application.Metricas;
 
-/// <summary>Veterinaria con renovación próxima o vencida (para "a quién cobrar").</summary>
+/// <summary>
+/// Sucursal con renovación próxima o vencida (para "a quién cobrar").
+/// <c>Id</c>/<c>Nombre</c> son de la VETERINARIA (compatibilidad); la sucursal va aparte.
+/// </summary>
 public sealed record RenovacionProximaDto(
     Guid Id,
     string Nombre,
     PlanSuscripcion Plan,
     DateOnly FechaRenovacion,
     int DiasRestantes,
-    bool Activa);
+    bool Activa,
+    Guid SucursalId,
+    string SucursalNombre,
+    bool EsMatriz,
+    decimal Precio);
 
-/// <summary>Panorama general de la plataforma para el SuperAdmin (calculado en servidor).</summary>
+/// <summary>
+/// Panorama general de la plataforma para el SuperAdmin (calculado en servidor).
+/// Los conteos de suscripción (por vencer, vencidas, planes) son por SUCURSAL: es lo que se cobra.
+/// </summary>
 public sealed record MetricasSuperAdminDto(
     int TotalVeterinarias,
     int VeterinariasActivas,
@@ -26,24 +36,26 @@ public sealed record MetricasSuperAdminDto(
     int AltasMes,
     int AdministradoresActivos,
     int VeterinariasSinAdmin,
-    IReadOnlyList<RenovacionProximaDto> ProximasRenovaciones);
+    IReadOnlyList<RenovacionProximaDto> ProximasRenovaciones,
+    int TotalSucursales,
+    int SucursalesActivas);
 
 /// <summary>
-/// Caso de uso: métricas globales del SaaS para el SuperAdmin — estado de las
-/// suscripciones (activas, por vencer, vencidas), mezcla de planes, altas del mes,
-/// administradores y veterinarias activas que aún no tienen administrador.
+/// Caso de uso: métricas globales del SaaS para el SuperAdmin — suscripciones por sucursal
+/// (activas, por vencer, vencidas, planes), altas del mes, administradores y veterinarias
+/// activas sin administrador.
 /// </summary>
 public sealed class MetricasSuperAdmin
 {
     /// <summary>Días antes del vencimiento en que una suscripción cuenta como "por vencer".</summary>
     public const int DiasAviso = 7;
 
-    private readonly IRepository<Veterinaria> _veterinarias;
+    private readonly GestionSucursales _sucursales;
     private readonly IUsuarioRepository _usuarios;
 
-    public MetricasSuperAdmin(IRepository<Veterinaria> veterinarias, IUsuarioRepository usuarios)
+    public MetricasSuperAdmin(GestionSucursales sucursales, IUsuarioRepository usuarios)
     {
-        _veterinarias = veterinarias;
+        _sucursales = sucursales;
         _usuarios = usuarios;
     }
 
@@ -52,31 +64,40 @@ public sealed class MetricasSuperAdmin
         DateOnly hoy = DateOnly.FromDateTime(DateTime.UtcNow);
         DateTime ahora = DateTime.UtcNow;
 
-        IReadOnlyList<Veterinaria> vets = await _veterinarias.ObtenerTodosAsync(cancellationToken);
+        IReadOnlyList<VeterinariaConSucursalesDto> vets = await _sucursales.ListarAsync(cancellationToken);
         IReadOnlyList<Usuario> admins = await _usuarios.ListarPorRolAsync(RolUsuario.Administrador, cancellationToken);
 
-        int Dias(Veterinaria v) => v.FechaRenovacion.DayNumber - hoy.DayNumber;
+        // Solo cuentan para cobro las sucursales de veterinarias activas.
+        var cobrables = vets
+            .Where(v => v.Activa)
+            .SelectMany(v => v.Sucursales.Select(s => (Vet: v, Suc: s)))
+            .ToList();
+        int Dias(SucursalDto s) => s.FechaRenovacion.DayNumber - hoy.DayNumber;
 
         var vetsConAdmin = admins.Where(a => a.Activo).Select(a => a.VeterinariaId).ToHashSet();
 
-        var proximas = vets
-            .Where(v => Dias(v) <= DiasAviso)
-            .OrderBy(Dias)
+        var proximas = cobrables
+            .Where(x => Dias(x.Suc) <= DiasAviso)
+            .OrderBy(x => Dias(x.Suc))
             .Take(5)
-            .Select(v => new RenovacionProximaDto(v.Id, v.Nombre, v.Plan, v.FechaRenovacion, Dias(v), v.Activa))
+            .Select(x => new RenovacionProximaDto(
+                x.Vet.Id, x.Vet.Nombre, x.Suc.Plan, x.Suc.FechaRenovacion, Dias(x.Suc), x.Suc.Activa,
+                x.Suc.Id, x.Suc.Nombre, x.Suc.EsMatriz, x.Suc.Precio))
             .ToList();
 
         return new MetricasSuperAdminDto(
             TotalVeterinarias: vets.Count,
             VeterinariasActivas: vets.Count(v => v.Activa),
             VeterinariasInactivas: vets.Count(v => !v.Activa),
-            PorVencer: vets.Count(v => Dias(v) is >= 0 and <= DiasAviso),
-            Vencidas: vets.Count(v => Dias(v) < 0),
-            PlanMensual: vets.Count(v => v.Plan == PlanSuscripcion.Mensual),
-            PlanAnual: vets.Count(v => v.Plan == PlanSuscripcion.Anual),
+            PorVencer: cobrables.Count(x => Dias(x.Suc) is >= 0 and <= DiasAviso),
+            Vencidas: cobrables.Count(x => Dias(x.Suc) < 0),
+            PlanMensual: cobrables.Count(x => x.Suc.Plan == PlanSuscripcion.Mensual),
+            PlanAnual: cobrables.Count(x => x.Suc.Plan == PlanSuscripcion.Anual),
             AltasMes: vets.Count(v => v.FechaAlta.Year == ahora.Year && v.FechaAlta.Month == ahora.Month),
             AdministradoresActivos: admins.Count(a => a.Activo),
             VeterinariasSinAdmin: vets.Count(v => v.Activa && !vetsConAdmin.Contains(v.Id)),
-            ProximasRenovaciones: proximas);
+            ProximasRenovaciones: proximas,
+            TotalSucursales: vets.Sum(v => v.Sucursales.Count),
+            SucursalesActivas: cobrables.Count(x => x.Suc.Activa));
     }
 }

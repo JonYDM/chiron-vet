@@ -5,6 +5,7 @@ using Chiron.Domain.Expedientes;
 using Chiron.Domain.Mascotas;
 using Chiron.Domain.PuntoVenta;
 using Chiron.Domain.Usuarios;
+using Chiron.Domain.Sucursales;
 using Chiron.Domain.Veterinarias;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,6 +21,7 @@ public sealed class ChironDbContext : DbContext
     public ChironDbContext(DbContextOptions<ChironDbContext> options) : base(options) { }
 
     public DbSet<Veterinaria> Veterinarias => Set<Veterinaria>();
+    public DbSet<Sucursal> Sucursales => Set<Sucursal>();
     public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<Cliente> Clientes => Set<Cliente>();
     public DbSet<Mascota> Mascotas => Set<Mascota>();
@@ -39,6 +41,15 @@ public sealed class ChironDbContext : DbContext
             // Las veterinarias existentes quedan en plan Mensual al migrar.
             vet.Property(e => e.Plan).HasDefaultValue(PlanSuscripcion.Mensual);
             vet.Property(e => e.Direccion).HasMaxLength(250);
+        });
+        modelBuilder.Entity<Sucursal>(s =>
+        {
+            s.HasKey(e => e.Id);
+            s.Property(e => e.Nombre).HasMaxLength(120);
+            s.Property(e => e.Direccion).HasMaxLength(250);
+            s.Property(e => e.Telefono).HasMaxLength(20);
+            s.Property(e => e.Precio).HasPrecision(10, 2);
+            s.HasIndex(e => e.VeterinariaId);
         });
         modelBuilder.Entity<Usuario>(u =>
         {
