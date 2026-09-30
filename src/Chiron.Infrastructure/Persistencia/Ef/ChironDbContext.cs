@@ -40,7 +40,14 @@ public sealed class ChironDbContext : DbContext
             vet.Property(e => e.Plan).HasDefaultValue(PlanSuscripcion.Mensual);
             vet.Property(e => e.Direccion).HasMaxLength(250);
         });
-        modelBuilder.Entity<Usuario>().HasKey(e => e.Id);
+        modelBuilder.Entity<Usuario>(u =>
+        {
+            u.HasKey(e => e.Id);
+            u.Property(e => e.ApellidoPaterno).HasMaxLength(80);
+            u.Property(e => e.ApellidoMaterno).HasMaxLength(80);
+            u.Property(e => e.Telefono).HasMaxLength(10);
+            u.Property(e => e.Curp).HasMaxLength(18);
+        });
         modelBuilder.Entity<Cliente>().HasKey(e => e.Id);
         modelBuilder.Entity<Mascota>().HasKey(e => e.Id);
         modelBuilder.Entity<FotoMascota>().HasKey(e => e.Id);

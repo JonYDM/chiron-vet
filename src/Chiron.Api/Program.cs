@@ -320,13 +320,10 @@ app.MapPost("/api/admin/veterinarias/{id:guid}/admin-operativo", async (Guid id,
 })
 .WithName("AdminOperativo").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
 
-// SuperAdmin crea el usuario ADMINISTRADOR de una veterinaria.
-app.MapPost("/api/admin/usuarios-admin", async (CrearUsuarioStaffComando cmd, CrearUsuarioStaff uc) =>
-{
-    // Fuerza el rol a Administrador sin importar lo que venga en el body.
-    var comando = cmd with { Rol = RolUsuario.Administrador };
-    return ToHttp(await uc.EjecutarAsync(comando));
-})
+// SuperAdmin crea el usuario ADMINISTRADOR de una veterinaria (HU-SA4).
+// El nombre de usuario se genera (nombre.apellidopaterno) y se devuelve en la respuesta.
+app.MapPost("/api/admin/usuarios-admin", async (CrearAdministradorComando cmd, CrearAdministrador uc) =>
+    ToHttp(await uc.EjecutarAsync(cmd)))
 .WithName("CrearAdminVeterinaria").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
 
 // ═══════════════════ GESTIÓN DE USUARIOS (Administrador de la veterinaria) ═══════════════════

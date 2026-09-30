@@ -52,6 +52,18 @@ public sealed class Usuario : EntidadBase
     /// <summary>Momento (UTC) hasta el cual el usuario está bloqueado, si aplica.</summary>
     public DateTime? BloqueadoHasta { get; private set; }
 
+    /// <summary>Apellido paterno (datos personales del staff; null en usuarios antiguos).</summary>
+    public string? ApellidoPaterno { get; private set; }
+
+    /// <summary>Apellido materno (opcional).</summary>
+    public string? ApellidoMaterno { get; private set; }
+
+    /// <summary>Teléfono de contacto del staff (no es el identificador de login).</summary>
+    public string? Telefono { get; private set; }
+
+    /// <summary>CURP (opcional). Se guarda en mayúsculas y con formato validado.</summary>
+    public string? Curp { get; private set; }
+
     private Usuario(Guid veterinariaId, string nombreUsuario, string nombre, string hashPin, RolUsuario rol, Guid? clienteId)
     {
         VeterinariaId = veterinariaId;
@@ -162,4 +174,33 @@ public sealed class Usuario : EntidadBase
     /// <summary>Normaliza el identificador: minúsculas y sin espacios alrededor.</summary>
     public static string NormalizarIdentificador(string identificador)
         => identificador.Trim().ToLowerInvariant();
+
+    /// <summary>Formato oficial de CURP (18 caracteres). El sexo admite H, M o X.</summary>
+    private static readonly System.Text.RegularExpressions.Regex PatronCurp =
+        new(@"^[A-Z]{4}\d{6}[HMX][A-Z]{5}[A-Z0-9]\d$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>
+    /// Asigna los datos personales del staff. Apellido paterno y teléfono (10 dígitos)
+    /// obligatorios; materno y CURP opcionales (la CURP se valida si viene).
+    /// </summary>
+    public Result<bool> AsignarDatosPersonales(
+        string apellidoPaterno, string? apellidoMaterno, string telefono, string? curp)
+    {
+        if (string.IsNullOrWhiteSpace(apellidoPaterno))
+            return Result<bool>.Falla("El apellido paterno es obligatorio.");
+
+        string tel = new string((telefono ?? string.Empty).Where(char.IsDigit).ToArray());
+        if (tel.Length != 10)
+            return Result<bool>.Falla("El teléfono debe tener 10 dígitos.");
+
+        string? curpNormalizada = string.IsNullOrWhiteSpace(curp) ? null : curp.Trim().ToUpperInvariant();
+        if (curpNormalizada is not null && !PatronCurp.IsMatch(curpNormalizada))
+            return Result<bool>.Falla("La CURP no tiene un formato válido.");
+
+        ApellidoPaterno = apellidoPaterno.Trim();
+        ApellidoMaterno = string.IsNullOrWhiteSpace(apellidoMaterno) ? null : apellidoMaterno.Trim();
+        Telefono = tel;
+        Curp = curpNormalizada;
+        return Result<bool>.Exito(true);
+    }
 }
