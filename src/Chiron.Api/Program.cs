@@ -275,9 +275,20 @@ app.MapPut("/api/admin/sucursales/{id:guid}", async (Guid id, EditarSucursalComa
     ToHttp(await uc.EditarSucursalAsync(id, dto)))
 .WithName("EditarSucursal").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
 
-app.MapPost("/api/admin/sucursales/{id:guid}/renovar", async (Guid id, GestionSucursales uc) =>
-    ToHttp(await uc.RenovarAsync(id)))
+// Renovar = registrar el cobro. Body opcional { monto?, fechaPago?, nota? } (por defecto: precio y hoy).
+app.MapPost("/api/admin/sucursales/{id:guid}/renovar", async (Guid id, RenovarComando? dto, GestionSucursales uc) =>
+    ToHttp(await uc.RenovarAsync(id, dto)))
 .WithName("RenovarSucursal").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
+
+// Historial de cobros (HU-SU5). Filtro opcional por rango de FechaPago (YYYY-MM-DD).
+app.MapGet("/api/admin/pagos", async (DateOnly? desde, DateOnly? hasta, GestionSucursales uc) =>
+    Results.Ok(await uc.ListarPagosAsync(desde, hasta)))
+.WithName("ListarPagosSuscripcion").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
+
+// Anular un pago mal capturado (no se borra; deja de contar en los ingresos).
+app.MapPost("/api/admin/pagos/{id:guid}/anular", async (Guid id, GestionSucursales uc) =>
+    ToHttp(await uc.AnularPagoAsync(id)))
+.WithName("AnularPagoSuscripcion").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
 
 app.MapPost("/api/admin/sucursales/{id:guid}/renovacion", async (Guid id, AjustarRenovacionDto dto, GestionSucursales uc) =>
     ToHttp(await uc.AjustarRenovacionAsync(id, dto.Fecha)))

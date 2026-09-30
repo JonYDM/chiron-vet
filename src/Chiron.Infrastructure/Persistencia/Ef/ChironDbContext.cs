@@ -6,6 +6,7 @@ using Chiron.Domain.Mascotas;
 using Chiron.Domain.PuntoVenta;
 using Chiron.Domain.Usuarios;
 using Chiron.Domain.Sucursales;
+using Chiron.Domain.Suscripciones;
 using Chiron.Domain.Veterinarias;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,6 +23,7 @@ public sealed class ChironDbContext : DbContext
 
     public DbSet<Veterinaria> Veterinarias => Set<Veterinaria>();
     public DbSet<Sucursal> Sucursales => Set<Sucursal>();
+    public DbSet<PagoSuscripcion> PagosSuscripcion => Set<PagoSuscripcion>();
     public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<Cliente> Clientes => Set<Cliente>();
     public DbSet<Mascota> Mascotas => Set<Mascota>();
@@ -50,6 +52,14 @@ public sealed class ChironDbContext : DbContext
             s.Property(e => e.Telefono).HasMaxLength(20);
             s.Property(e => e.Precio).HasPrecision(10, 2);
             s.HasIndex(e => e.VeterinariaId);
+        });
+        modelBuilder.Entity<PagoSuscripcion>(p =>
+        {
+            p.HasKey(e => e.Id);
+            p.Property(e => e.Monto).HasPrecision(10, 2);
+            p.Property(e => e.Nota).HasMaxLength(250);
+            p.HasIndex(e => e.FechaPago);
+            p.HasIndex(e => e.SucursalId);
         });
         modelBuilder.Entity<Usuario>(u =>
         {

@@ -93,12 +93,14 @@ public sealed class Sucursal : EntidadBase
     /// <summary>
     /// Renueva un periodo según el plan: si ya venció cuenta desde hoy; si sigue vigente se
     /// suma al vencimiento (no se pierden días pagados). Reactiva la sucursal.
+    /// Devuelve el periodo cubierto por la renovación.
     /// </summary>
-    public void Renovar(DateOnly hoy)
+    public (DateOnly Desde, DateOnly Hasta) Renovar(DateOnly hoy)
     {
         DateOnly desde = FechaRenovacion > hoy ? FechaRenovacion : hoy;
         FechaRenovacion = SiguientePeriodo(desde, Plan);
         Activa = true;
+        return (desde, FechaRenovacion);
     }
 
     /// <summary>Ajuste manual de la fecha de renovación (prórrogas, pagos irregulares).</summary>
