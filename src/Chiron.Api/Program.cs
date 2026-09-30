@@ -322,14 +322,16 @@ app.MapPost("/api/admin/veterinarias/{id:guid}/admin-operativo", async (Guid id,
 
 // SuperAdmin crea el usuario ADMINISTRADOR de una veterinaria (HU-SA4).
 // El nombre de usuario se genera (nombre.apellidopaterno) y se devuelve en la respuesta.
-app.MapPost("/api/admin/usuarios-admin", async (CrearAdministradorComando cmd, CrearAdministrador uc) =>
-    ToHttp(await uc.EjecutarAsync(cmd)))
+app.MapPost("/api/admin/usuarios-admin", async (CrearAdministradorDto dto, AltaStaff uc) =>
+    ToHttp(await uc.EjecutarAsync(new AltaStaffComando(
+        dto.VeterinariaId, dto.Nombre, dto.ApellidoPaterno, dto.ApellidoMaterno,
+        dto.Telefono, dto.Curp, dto.Pin, RolUsuario.Administrador))))
 .WithName("CrearAdminVeterinaria").WithTags("SuperAdmin").RequireAuthorization(p => p.RequireRole(SuperAdmin));
 
 // ═══════════════════ GESTIÓN DE USUARIOS (Administrador de la veterinaria) ═══════════════════
 // El Administrador crea staff (veterinario/recepcionista) de SU veterinaria.
 // El VeterinariaId se toma del token del admin, no del body (aislamiento multi-tenant).
-app.MapPost("/api/usuarios/staff", async (CrearStaffDto dto, ClaimsPrincipal user, CrearUsuarioStaff uc) =>
+app.MapPost("/api/usuarios/staff", async (CrearStaffDto dto, ClaimsPrincipal user, AltaStaff uc) =>
 {
     string? vetClaim = user.FindFirst("veterinariaId")?.Value;
     if (!Guid.TryParse(vetClaim, out Guid veterinariaId))
@@ -339,7 +341,9 @@ app.MapPost("/api/usuarios/staff", async (CrearStaffDto dto, ClaimsPrincipal use
     if (dto.Rol != RolUsuario.Veterinario && dto.Rol != RolUsuario.Recepcionista)
         return Results.BadRequest(new { error = "Rol no permitido. Use Veterinario o Recepcionista." });
 
-    var comando = new CrearUsuarioStaffComando(veterinariaId, dto.NombreUsuario, dto.Nombre, dto.Pin, dto.Rol);
+    // El usuario se genera (nombre.apellidopaterno); ya no se captura a mano.
+    var comando = new AltaStaffComando(veterinariaId, dto.Nombre, dto.ApellidoPaterno, dto.ApellidoMaterno,
+        dto.Telefono, dto.Curp, dto.Pin, dto.Rol);
     return ToHttp(await uc.EjecutarAsync(comando));
 })
 .WithName("CrearStaff").WithTags("Usuarios").RequireAuthorization(p => p.RequireRole(Administrador));
@@ -422,6 +426,30 @@ app.MapPost("/api/usuarios/{id:guid}/gestionar", async (Guid id, GestionarUsuari
     return ToHttp(await uc.EjecutarAsync(comando));
 })
 .WithName("GestionarUsuario").WithTags("Usuarios").RequireAuthorization(p => p.RequireRole(Administrador, SuperAdmin));
+
+// Detalle de un usuario (drawer de gestión). CURP enmascarada. Mismas reglas que gestionar.
+app.MapGet("/api/usuarios/{id:guid}", async (Guid id, ClaimsPrincipal user, ObtenerDetalleUsuario uc) =>
+{
+    string? rolClaim = user.FindFirst(ClaimTypes.Role)?.Value ?? user.FindFirst("role")?.Value;
+    if (!Enum.TryParse<RolUsuario>(rolClaim, out RolUsuario solicitanteRol))
+        return Results.BadRequest(new { error = "Token sin rol válido." });
+    Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid solicitanteVet);
+    return ToHttp(await uc.EjecutarAsync(id, solicitanteRol, solicitanteVet));
+})
+.WithName("DetalleUsuario").WithTags("Usuarios").RequireAuthorization(p => p.RequireRole(Administrador, SuperAdmin));
+
+// Editar datos personales (nombres, apellidos, teléfono, CURP). El usuario de login no cambia.
+app.MapPut("/api/usuarios/{id:guid}/datos", async (Guid id, EditarDatosUsuarioDto dto, ClaimsPrincipal user, EditarDatosUsuario uc) =>
+{
+    string? rolClaim = user.FindFirst(ClaimTypes.Role)?.Value ?? user.FindFirst("role")?.Value;
+    if (!Enum.TryParse<RolUsuario>(rolClaim, out RolUsuario solicitanteRol))
+        return Results.BadRequest(new { error = "Token sin rol válido." });
+    Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid solicitanteVet);
+    var comando = new EditarDatosUsuarioComando(id, dto.Nombres, dto.ApellidoPaterno, dto.ApellidoMaterno,
+        dto.Telefono, dto.Curp, solicitanteRol, solicitanteVet);
+    return ToHttp(await uc.EjecutarAsync(comando));
+})
+.WithName("EditarDatosUsuario").WithTags("Usuarios").RequireAuthorization(p => p.RequireRole(Administrador, SuperAdmin));
 
 // ═══════════════════ CLIENTES Y MASCOTAS (staff de la veterinaria) ═══════════════════
 app.MapPost("/api/registro-rapido", async (RegistrarClienteConMascotaComando cmd, RegistrarClienteConMascota uc) =>
@@ -831,7 +859,13 @@ record EditarVeterinariaDto(string Nombre, string Telefono, string? Direccion, P
 record AjustarRenovacionDto(DateOnly Fecha);
 
 // DTO para que el Administrador cree staff de su veterinaria (el VeterinariaId sale del token).
-record CrearStaffDto(string NombreUsuario, string Nombre, string Pin, RolUsuario Rol);
+record CrearStaffDto(string Nombre, string ApellidoPaterno, string? ApellidoMaterno,
+    string Telefono, string? Curp, string Pin, RolUsuario Rol);
+record CrearAdministradorDto(Guid VeterinariaId, string Nombre, string ApellidoPaterno, string? ApellidoMaterno,
+    string Telefono, string? Curp, string Pin);
+// Curp: null = conservar, "" = quitar, valor = reemplazar.
+record EditarDatosUsuarioDto(string Nombres, string ApellidoPaterno, string? ApellidoMaterno,
+    string Telefono, string? Curp);
 
 // DTO para crear el acceso de un dueño de mascota (por su cliente).
 record CrearDuenoDto(Guid ClienteId, string Pin);
