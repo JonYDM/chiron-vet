@@ -203,4 +203,42 @@ public sealed class Usuario : EntidadBase
         Curp = curpNormalizada;
         return Result<bool>.Exito(true);
     }
+
+    /// <summary>
+    /// Edita nombre(s), apellidos, teléfono y CURP, y recompone el nombre para mostrar.
+    /// CURP: <c>null</c> = conservar la actual, cadena vacía = quitarla, valor = reemplazarla.
+    /// </summary>
+    public Result<bool> EditarDatosPersonales(
+        string nombres, string apellidoPaterno, string? apellidoMaterno, string telefono, string? curp)
+    {
+        if (string.IsNullOrWhiteSpace(nombres))
+            return Result<bool>.Falla("El nombre es obligatorio.");
+
+        Result<bool> datos = AsignarDatosPersonales(apellidoPaterno, apellidoMaterno, telefono, curp ?? Curp);
+        if (!datos.EsExito)
+            return datos;
+
+        Nombre = string.Join(' ', new[] { nombres.Trim(), ApellidoPaterno, ApellidoMaterno }
+            .Where(p => !string.IsNullOrWhiteSpace(p)));
+        return Result<bool>.Exito(true);
+    }
+
+    /// <summary>
+    /// Nombre(s) de pila. <see cref="Nombre"/> guarda el nombre completo (nombres + apellidos),
+    /// así que se deriva quitando los apellidos del final. Usuarios sin apellidos: el Nombre tal cual.
+    /// </summary>
+    public string ObtenerNombres()
+    {
+        if (string.IsNullOrWhiteSpace(ApellidoPaterno))
+            return Nombre;
+        string sufijo = string.Join(' ', new[] { ApellidoPaterno, ApellidoMaterno }
+            .Where(p => !string.IsNullOrWhiteSpace(p)));
+        return Nombre.EndsWith(" " + sufijo, StringComparison.OrdinalIgnoreCase)
+            ? Nombre[..^(sufijo.Length + 1)].Trim()
+            : Nombre;
+    }
+
+    /// <summary>CURP enmascarada para mostrar (4 primeros + 2 últimos), o null si no hay.</summary>
+    public string? CurpEnmascarada()
+        => Curp is { Length: 18 } c ? $"{c[..4]}{new string('•', 12)}{c[^2..]}" : null;
 }

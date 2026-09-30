@@ -7,30 +7,35 @@ using Chiron.Domain.Veterinarias;
 
 namespace Chiron.Application.Seguridad;
 
-/// <summary>Datos para que el SuperAdmin dé de alta al Administrador de una veterinaria (HU-SA4).</summary>
-public sealed record CrearAdministradorComando(
+/// <summary>
+/// Datos para dar de alta a un usuario de staff con sus datos personales (HU-SA4):
+/// el SuperAdmin crea Administradores y el Administrador crea Veterinarios/Recepcionistas.
+/// </summary>
+public sealed record AltaStaffComando(
     Guid VeterinariaId,
     string Nombre,
     string ApellidoPaterno,
     string? ApellidoMaterno,
     string Telefono,
     string? Curp,
-    string Pin);
+    string Pin,
+    RolUsuario Rol);
 
-/// <summary>Resultado del alta: el usuario generado se le muestra al SuperAdmin para entregarlo.</summary>
-public sealed record AdministradorCreadoDto(Guid Id, string NombreUsuario, string NombreCompleto);
+/// <summary>Resultado del alta: el usuario generado se muestra para entregarlo.</summary>
+public sealed record UsuarioCreadoDto(Guid Id, string NombreUsuario, string NombreCompleto);
 
 /// <summary>
-/// Caso de uso: crear el Administrador de una veterinaria. El nombre de usuario NO se captura:
-/// se genera como <c>nombre.apellidopaterno</c> (ver <see cref="GeneradorNombreUsuario"/>).
+/// Caso de uso: alta de staff. El nombre de usuario NO se captura: se genera como
+/// <c>nombre.apellidopaterno</c> (ver <see cref="GeneradorNombreUsuario"/>).
+/// Quién puede crear qué rol lo decide el endpoint (según el token).
 /// </summary>
-public sealed class CrearAdministrador
+public sealed class AltaStaff
 {
     private readonly IUsuarioRepository _usuarios;
     private readonly IRepository<Veterinaria> _veterinarias;
     private readonly IHasheadorContrasena _hasheador;
 
-    public CrearAdministrador(
+    public AltaStaff(
         IUsuarioRepository usuarios, IRepository<Veterinaria> veterinarias, IHasheadorContrasena hasheador)
     {
         _usuarios = usuarios;
@@ -38,48 +43,50 @@ public sealed class CrearAdministrador
         _hasheador = hasheador;
     }
 
-    public async Task<Result<AdministradorCreadoDto>> EjecutarAsync(
-        CrearAdministradorComando comando, CancellationToken cancellationToken = default)
+    public async Task<Result<UsuarioCreadoDto>> EjecutarAsync(
+        AltaStaffComando comando, CancellationToken cancellationToken = default)
     {
+        if (comando.Rol is RolUsuario.DuenoMascota or RolUsuario.SuperAdmin)
+            return Result<UsuarioCreadoDto>.Falla("Rol no permitido para el alta de staff.");
         if (string.IsNullOrWhiteSpace(comando.Nombre))
-            return Result<AdministradorCreadoDto>.Falla("El nombre es obligatorio.");
+            return Result<UsuarioCreadoDto>.Falla("El nombre es obligatorio.");
         if (string.IsNullOrWhiteSpace(comando.ApellidoPaterno))
-            return Result<AdministradorCreadoDto>.Falla("El apellido paterno es obligatorio.");
+            return Result<UsuarioCreadoDto>.Falla("El apellido paterno es obligatorio.");
 
         Result<bool> pinValido = ValidadorPin.Validar(comando.Pin);
         if (!pinValido.EsExito)
-            return Result<AdministradorCreadoDto>.Falla(pinValido.Error!);
+            return Result<UsuarioCreadoDto>.Falla(pinValido.Error!);
 
         Veterinaria? vet = await _veterinarias.ObtenerPorIdAsync(comando.VeterinariaId, cancellationToken);
         if (vet is null)
-            return Result<AdministradorCreadoDto>.Falla("La veterinaria no existe.");
+            return Result<UsuarioCreadoDto>.Falla("La veterinaria no existe.");
 
         string? nombreUsuario = await GenerarDisponibleAsync(comando, cancellationToken);
         if (nombreUsuario is null)
-            return Result<AdministradorCreadoDto>.Falla("No se pudo generar un nombre de usuario con esos datos.");
+            return Result<UsuarioCreadoDto>.Falla("No se pudo generar un nombre de usuario con esos datos.");
 
         string nombreCompleto = string.Join(' ', new[] { comando.Nombre, comando.ApellidoPaterno, comando.ApellidoMaterno }
             .Where(p => !string.IsNullOrWhiteSpace(p))
             .Select(p => p!.Trim()));
 
         Result<Usuario> creado = Usuario.CrearStaff(
-            comando.VeterinariaId, nombreUsuario, nombreCompleto, _hasheador.Hashear(comando.Pin), RolUsuario.Administrador);
+            comando.VeterinariaId, nombreUsuario, nombreCompleto, _hasheador.Hashear(comando.Pin), comando.Rol);
         if (!creado.EsExito)
-            return Result<AdministradorCreadoDto>.Falla(creado.Error!);
+            return Result<UsuarioCreadoDto>.Falla(creado.Error!);
 
         Usuario usuario = creado.Valor!;
         Result<bool> datos = usuario.AsignarDatosPersonales(
             comando.ApellidoPaterno, comando.ApellidoMaterno, comando.Telefono, comando.Curp);
         if (!datos.EsExito)
-            return Result<AdministradorCreadoDto>.Falla(datos.Error!);
+            return Result<UsuarioCreadoDto>.Falla(datos.Error!);
 
         await _usuarios.AgregarAsync(usuario, cancellationToken);
-        return Result<AdministradorCreadoDto>.Exito(
-            new AdministradorCreadoDto(usuario.Id, usuario.NombreUsuario, usuario.Nombre));
+        return Result<UsuarioCreadoDto>.Exito(
+            new UsuarioCreadoDto(usuario.Id, usuario.NombreUsuario, usuario.Nombre));
     }
 
     /// <summary>Recorre los candidatos en orden y devuelve el primero que no exista.</summary>
-    private async Task<string?> GenerarDisponibleAsync(CrearAdministradorComando c, CancellationToken ct)
+    private async Task<string?> GenerarDisponibleAsync(AltaStaffComando c, CancellationToken ct)
     {
         foreach (string candidato in GeneradorNombreUsuario.Candidatos(c.Nombre, c.ApellidoPaterno, c.ApellidoMaterno))
         {

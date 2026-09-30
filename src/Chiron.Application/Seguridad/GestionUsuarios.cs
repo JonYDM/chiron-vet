@@ -76,7 +76,7 @@ public sealed class GestionarUsuario
         if (objetivo is null)
             return Result<bool>.Falla("El usuario indicado no existe.");
 
-        Result<bool> autorizado = Autorizar(comando, objetivo);
+        Result<bool> autorizado = Autorizar(comando.SolicitanteRol, comando.SolicitanteVeterinariaId, objetivo);
         if (!autorizado.EsExito)
             return autorizado;
 
@@ -98,9 +98,12 @@ public sealed class GestionarUsuario
         return Result<bool>.Exito(true);
     }
 
-    private static Result<bool> Autorizar(GestionarUsuarioComando comando, Usuario objetivo)
+    /// <summary>
+    /// Regla única de quién puede gestionar a quién (la usan gestionar, detalle y edición de datos).
+    /// </summary>
+    internal static Result<bool> Autorizar(RolUsuario solicitanteRol, Guid solicitanteVeterinariaId, Usuario objetivo)
     {
-        switch (comando.SolicitanteRol)
+        switch (solicitanteRol)
         {
             case RolUsuario.SuperAdmin:
                 if (objetivo.Rol != RolUsuario.Administrador)
@@ -108,7 +111,7 @@ public sealed class GestionarUsuario
                 return Result<bool>.Exito(true);
 
             case RolUsuario.Administrador:
-                if (objetivo.VeterinariaId != comando.SolicitanteVeterinariaId)
+                if (objetivo.VeterinariaId != solicitanteVeterinariaId)
                     return Result<bool>.Falla("No puedes gestionar usuarios de otra veterinaria.");
                 if (objetivo.Rol is not (RolUsuario.Veterinario or RolUsuario.Recepcionista or RolUsuario.DuenoMascota))
                     return Result<bool>.Falla("No tienes permiso para gestionar ese usuario.");
