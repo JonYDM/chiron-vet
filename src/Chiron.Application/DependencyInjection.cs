@@ -40,6 +40,7 @@ public static class DependencyInjection
 
         services.AddTransient<AgendarCita>();
         services.AddTransient<VerAgenda>();
+        services.AddTransient<CitasDelDueno>();
         services.AddTransient<CambiarEstadoCita>();
 
         services.AddTransient<GenerarRecordatorios>();

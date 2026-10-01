@@ -14,6 +14,7 @@ namespace Chiron.Application.Citas;
 /// <param name="Motivo">Motivo de la cita.</param>
 /// <param name="Estado">Estado actual.</param>
 /// <param name="VeterinarioId">Veterinario asignado (opcional).</param>
+/// <param name="Confirmacion">Respuesta del dueño desde el portal.</param>
 public sealed record CitaDto(
     Guid Id,
     Guid MascotaId,
@@ -22,4 +23,5 @@ public sealed record CitaDto(
     DateTime FechaHora,
     string Motivo,
     EstadoCita Estado,
-    Guid? VeterinarioId);
+    Guid? VeterinarioId,
+    ConfirmacionCita Confirmacion);

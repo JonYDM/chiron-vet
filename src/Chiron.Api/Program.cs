@@ -866,6 +866,24 @@ app.MapGet("/api/portal/mis-compras", async (ClaimsPrincipal user, ListarVentasD
 })
 .WithName("MisCompras").WithTags("Portal").RequireAuthorization(p => p.RequireRole(DuenoMascota));
 
+// Mis citas (de mis mascotas). El front separa próximas e historial.
+app.MapGet("/api/portal/mis-citas", async (ClaimsPrincipal user, CitasDelDueno uc) =>
+{
+    var datos = DatosDueno(user);
+    if (datos is null) return Results.BadRequest(new { error = "Token inválido." });
+    return Results.Ok(await uc.ListarAsync(datos.Value.clienteId, datos.Value.veterinariaId));
+})
+.WithName("MisCitas").WithTags("Portal").RequireAuthorization(p => p.RequireRole(DuenoMascota));
+
+// Responder si asistiré a una cita (solo citas de mis mascotas, solo si sigue programada).
+app.MapPost("/api/portal/citas/{id:guid}/asistencia", async (Guid id, AsistenciaDto dto, ClaimsPrincipal user, CitasDelDueno uc) =>
+{
+    var datos = DatosDueno(user);
+    if (datos is null) return Results.BadRequest(new { error = "Token inválido." });
+    return ToHttp(await uc.ResponderAsync(datos.Value.clienteId, id, dto.Asistira));
+})
+.WithName("ResponderAsistencia").WithTags("Portal").RequireAuthorization(p => p.RequireRole(DuenoMascota));
+
 app.Run();
 
 // DTO de entrada para crear veterinaria.
@@ -890,6 +908,7 @@ record ResetearPinDto(string NuevoPin);
 
 // ── DTOs de las mejoras (mejoras-mvp) ──
 record CambiarEstadoCitaDto(AccionCita Accion);
+record AsistenciaDto(bool Asistira);
 record CrearCargoDto(Guid MascotaId, string Concepto, decimal Monto, Guid? RegistroMedicoId);
 record EditarProductoDto(string Nombre, CategoriaProducto Categoria, decimal Precio);
 record ReabastecerStockDto(int Cantidad);
