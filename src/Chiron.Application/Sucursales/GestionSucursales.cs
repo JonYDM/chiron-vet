@@ -87,7 +87,7 @@ public sealed class GestionSucursales
         _pagos = pagos;
     }
 
-    private static DateOnly Hoy() => DateOnly.FromDateTime(DateTime.UtcNow);
+    private static DateOnly Hoy() => HoraMexico.Hoy();
 
     /// <summary>Todas las veterinarias con sus sucursales (Matriz primero).</summary>
     public async Task<IReadOnlyList<VeterinariaConSucursalesDto>> ListarAsync(CancellationToken ct = default)
@@ -116,7 +116,7 @@ public sealed class GestionSucursales
         if (!vet.EsExito)
             return Result<VeterinariaConSucursalesDto>.Falla(vet.Error!);
 
-        Result<Sucursal> matriz = Sucursal.Crear(vet.Valor!.Id, "Matriz", direccion, telefono, p, precio, esMatriz: true);
+        Result<Sucursal> matriz = Sucursal.Crear(vet.Valor!.Id, "Matriz", direccion, telefono, p, precio, esMatriz: true, hoy: Hoy());
         if (!matriz.EsExito)
             return Result<VeterinariaConSucursalesDto>.Falla(matriz.Error!);
 
@@ -130,7 +130,7 @@ public sealed class GestionSucursales
         Veterinaria? vet = await _veterinarias.ObtenerPorIdAsync(veterinariaId, ct);
         if (vet is null)
             return Result<SucursalDto>.Falla("La veterinaria no existe.");
-        Result<Sucursal> s = Sucursal.Crear(veterinariaId, c.Nombre, c.Direccion, c.Telefono, c.Plan, c.Precio);
+        Result<Sucursal> s = Sucursal.Crear(veterinariaId, c.Nombre, c.Direccion, c.Telefono, c.Plan, c.Precio, hoy: Hoy());
         if (!s.EsExito)
             return Result<SucursalDto>.Falla(s.Error!);
         await _sucursales.AgregarAsync(s.Valor!, ct);
@@ -316,7 +316,7 @@ public sealed class GestionSucursales
     private async Task<Sucursal> CrearMatrizHeredadaAsync(Veterinaria v, CancellationToken ct)
     {
         DateOnly? fecha = v.FechaRenovacion == default ? null : v.FechaRenovacion;
-        Sucursal m = Sucursal.Crear(v.Id, "Matriz", v.Direccion, v.Telefono, v.Plan, null, esMatriz: true, fechaRenovacion: fecha).Valor!;
+        Sucursal m = Sucursal.Crear(v.Id, "Matriz", v.Direccion, v.Telefono, v.Plan, null, esMatriz: true, fechaRenovacion: fecha, hoy: Hoy()).Valor!;
         if (!v.Activa)
             m.Desactivar();
         await _sucursales.AgregarAsync(m, ct);

@@ -31,9 +31,24 @@ public static class HoraMexico
     public static DateOnly Hoy() => DateOnly.FromDateTime(ALocal(DateTime.UtcNow));
 
     /// <summary>Instante UTC en que empezó el día de hoy en México (00:00 local).</summary>
-    public static DateTime InicioDeHoyUtc()
+    public static DateTime InicioDeHoyUtc() => AUtc(Hoy());
+
+    /// <summary>Instante UTC en que empezó el mes en curso en México (día 1, 00:00 local).</summary>
+    public static DateTime InicioDeMesUtc()
     {
-        DateTime medianocheLocal = Hoy().ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
-        return TimeZoneInfo.ConvertTimeToUtc(medianocheLocal, Zona);
+        DateOnly hoy = Hoy();
+        return AUtc(new DateOnly(hoy.Year, hoy.Month, 1));
     }
+
+    /// <summary>¿El instante UTC cae en el mes en curso de México?</summary>
+    public static bool EsDelMesActual(DateTime utc)
+    {
+        DateTime local = ALocal(utc);
+        DateOnly hoy = Hoy();
+        return local.Year == hoy.Year && local.Month == hoy.Month;
+    }
+
+    /// <summary>Medianoche local de una fecha, expresada en UTC.</summary>
+    private static DateTime AUtc(DateOnly fechaLocal)
+        => TimeZoneInfo.ConvertTimeToUtc(fechaLocal.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified), Zona);
 }
