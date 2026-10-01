@@ -214,6 +214,44 @@ app.MapGet("/", () => Results.Redirect("/swagger"));
 static IResult ToHttp<T>(Result<T> r) =>
     r.EsExito ? Results.Ok(r.Valor) : Results.BadRequest(new { error = r.Error });
 
+// ═══════════════════ AISLAMIENTO MULTI-TENANT ═══════════════════
+// Regla: la veterinaria SIEMPRE sale del token. Nunca de la URL ni del body sin validar.
+// Si un recurso no es de la veterinaria del token, se responde 404 (no 403) para no
+// confirmar que existe en otra clínica.
+
+// Veterinaria del usuario autenticado (null si el token no trae una válida, p. ej. SuperAdmin).
+static Guid? VetDelToken(ClaimsPrincipal user)
+    => Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid v) && v != Guid.Empty ? v : null;
+
+static IResult SinVeterinaria() => Results.BadRequest(new { error = "Token sin veterinaria válida." });
+
+// Filtro para rutas /api/veterinarias/{veterinariaId}/...: la de la ruta debe ser la del token.
+static async ValueTask<object?> MismaVeterinaria(EndpointFilterInvocationContext ctx, EndpointFilterDelegate next)
+{
+    string? deRuta = ctx.HttpContext.Request.RouteValues["veterinariaId"]?.ToString();
+    Guid? delToken = VetDelToken(ctx.HttpContext.User);
+    if (delToken is null || !Guid.TryParse(deRuta, out Guid ruta) || ruta != delToken)
+        return Results.NotFound();
+    return await next(ctx);
+}
+
+// ¿El cliente / la mascota pertenece a la veterinaria del token?
+static async Task<bool> EsClienteDeMiVeterinaria(ClaimsPrincipal user, Guid clienteId, IClienteRepository clientes)
+{
+    Guid? vet = VetDelToken(user);
+    if (vet is null) return false;
+    var cliente = await clientes.ObtenerPorIdAsync(clienteId);
+    return cliente is not null && cliente.VeterinariaId == vet;
+}
+
+static async Task<bool> EsMascotaDeMiVeterinaria(ClaimsPrincipal user, Guid mascotaId, IMascotaRepository mascotas)
+{
+    Guid? vet = VetDelToken(user);
+    if (vet is null) return false;
+    var mascota = await mascotas.ObtenerPorIdAsync(mascotaId);
+    return mascota is not null && mascota.VeterinariaId == vet;
+}
+
 // Nombres de roles como constantes para autorización.
 const string SuperAdmin = nameof(RolUsuario.SuperAdmin);
 const string Administrador = nameof(RolUsuario.Administrador);
@@ -393,8 +431,10 @@ app.MapGet("/api/admin/administradores", async (FiltroEstado? estado, ListarAdmi
 
 // Obtener el usuario (acceso al portal) de un cliente: indica si ya tiene acceso
 // y su usuarioId (para resetear su PIN). Devuelve 204 si el cliente no tiene acceso.
-app.MapGet("/api/clientes/{clienteId:guid}/usuario", async (Guid clienteId, ObtenerUsuarioDeCliente uc) =>
+app.MapGet("/api/clientes/{clienteId:guid}/usuario", async (
+    Guid clienteId, ClaimsPrincipal user, IClienteRepository clientes, ObtenerUsuarioDeCliente uc) =>
 {
+    if (!await EsClienteDeMiVeterinaria(user, clienteId, clientes)) return Results.NotFound();
     UsuarioDto? dto = await uc.EjecutarAsync(clienteId);
     return dto is null ? Results.NoContent() : Results.Ok(dto);
 })
@@ -450,8 +490,8 @@ app.MapPut("/api/usuarios/{id:guid}/datos", async (Guid id, EditarDatosUsuarioDt
 .WithName("EditarDatosUsuario").WithTags("Usuarios").RequireAuthorization(p => p.RequireRole(Administrador, SuperAdmin));
 
 // ═══════════════════ CLIENTES Y MASCOTAS (staff de la veterinaria) ═══════════════════
-app.MapPost("/api/registro-rapido", async (RegistrarClienteConMascotaComando cmd, RegistrarClienteConMascota uc) =>
-    ToHttp(await uc.EjecutarAsync(cmd)))
+app.MapPost("/api/registro-rapido", async (RegistrarClienteConMascotaComando cmd, ClaimsPrincipal user, RegistrarClienteConMascota uc) =>
+    VetDelToken(user) is Guid vet ? ToHttp(await uc.EjecutarAsync(cmd with { VeterinariaId = vet })) : SinVeterinaria())
 .WithName("RegistroRapido").WithTags("Clientes")
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
@@ -459,11 +499,14 @@ app.MapGet("/api/veterinarias/{veterinariaId:guid}/clientes", async (
     Guid veterinariaId, string? texto, FiltroEstado? estado, int? pagina, int? tamano, BuscarClientes uc) =>
     Results.Ok(await uc.EjecutarAsync(
         veterinariaId, texto, estado ?? FiltroEstado.Activos, pagina ?? 1, tamano ?? 20)))
-.WithName("BuscarClientes").WithTags("Clientes")
+.AddEndpointFilter(MismaVeterinaria).WithName("BuscarClientes").WithTags("Clientes")
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
-app.MapGet("/api/clientes/{clienteId:guid}/mascotas", async (Guid clienteId, FiltroEstado? estado, ListarMascotasDeCliente uc) =>
-    Results.Ok(await uc.EjecutarAsync(clienteId, estado ?? FiltroEstado.Activos)))
+app.MapGet("/api/clientes/{clienteId:guid}/mascotas", async (
+    Guid clienteId, FiltroEstado? estado, ClaimsPrincipal user, IClienteRepository clientes, ListarMascotasDeCliente uc) =>
+    await EsClienteDeMiVeterinaria(user, clienteId, clientes)
+        ? Results.Ok(await uc.EjecutarAsync(clienteId, estado ?? FiltroEstado.Activos))
+        : Results.NotFound())
 .WithName("MascotasDeCliente").WithTags("Mascotas")
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
@@ -621,13 +664,16 @@ app.MapPut("/api/mascotas/{id:guid}", async (Guid id, EditarMascotaDto dto, Clai
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
 // ═══════════════════ EXPEDIENTE (veterinario y admin) ═══════════════════
-app.MapPost("/api/expediente", async (AgregarRegistroMedicoComando cmd, AgregarRegistroMedico uc) =>
-    ToHttp(await uc.EjecutarAsync(cmd)))
+app.MapPost("/api/expediente", async (AgregarRegistroMedicoComando cmd, ClaimsPrincipal user, AgregarRegistroMedico uc) =>
+    VetDelToken(user) is Guid vet ? ToHttp(await uc.EjecutarAsync(cmd with { VeterinariaId = vet })) : SinVeterinaria())
 .WithName("AgregarRegistroMedico").WithTags("Expediente")
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario));
 
-app.MapGet("/api/mascotas/{mascotaId:guid}/expediente", async (Guid mascotaId, VerExpedienteMascota uc) =>
-    Results.Ok(await uc.EjecutarAsync(mascotaId)))
+app.MapGet("/api/mascotas/{mascotaId:guid}/expediente", async (
+    Guid mascotaId, ClaimsPrincipal user, IMascotaRepository mascotas, VerExpedienteMascota uc) =>
+    await EsMascotaDeMiVeterinaria(user, mascotaId, mascotas)
+        ? Results.Ok(await uc.EjecutarAsync(mascotaId))
+        : Results.NotFound())
 .WithName("VerExpediente").WithTags("Expediente")
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
@@ -656,14 +702,14 @@ app.MapGet("/api/cargos/pendientes", async (ClaimsPrincipal user, Chiron.Applica
 .RequireAuthorization(p => p.RequireRole(Administrador, Recepcionista));
 
 // ═══════════════════ CITAS (staff) ═══════════════════
-app.MapPost("/api/citas", async (AgendarCitaComando cmd, AgendarCita uc) =>
-    ToHttp(await uc.EjecutarAsync(cmd)))
+app.MapPost("/api/citas", async (AgendarCitaComando cmd, ClaimsPrincipal user, AgendarCita uc) =>
+    VetDelToken(user) is Guid vet ? ToHttp(await uc.EjecutarAsync(cmd with { VeterinariaId = vet })) : SinVeterinaria())
 .WithName("AgendarCita").WithTags("Citas")
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
 app.MapGet("/api/veterinarias/{veterinariaId:guid}/citas/proximas", async (Guid veterinariaId, VerAgenda uc) =>
     Results.Ok(await uc.ProximasAsync(veterinariaId)))
-.WithName("ProximasCitas").WithTags("Citas")
+.AddEndpointFilter(MismaVeterinaria).WithName("ProximasCitas").WithTags("Citas")
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
 // Lista TODAS las citas de la veterinaria (opcionalmente por estado), con nombre de
@@ -691,19 +737,19 @@ app.MapPost("/api/citas/{id:guid}/estado", async (Guid id, CambiarEstadoCitaDto 
 
 // ═══════════════════ PUNTO DE VENTA ═══════════════════
 // Catálogo: admin gestiona productos.
-app.MapPost("/api/productos", async (AgregarProductoComando cmd, AgregarProducto uc) =>
-    ToHttp(await uc.EjecutarAsync(cmd)))
+app.MapPost("/api/productos", async (AgregarProductoComando cmd, ClaimsPrincipal user, AgregarProducto uc) =>
+    VetDelToken(user) is Guid vet ? ToHttp(await uc.EjecutarAsync(cmd with { VeterinariaId = vet })) : SinVeterinaria())
 .WithName("AgregarProducto").WithTags("PuntoVenta")
 .RequireAuthorization(p => p.RequireRole(Administrador));
 
 app.MapGet("/api/veterinarias/{veterinariaId:guid}/catalogo", async (Guid veterinariaId, FiltroEstado? estado, ListarCatalogo uc) =>
     Results.Ok(await uc.EjecutarAsync(veterinariaId, estado ?? FiltroEstado.Activos)))
-.WithName("ListarCatalogo").WithTags("PuntoVenta")
+.AddEndpointFilter(MismaVeterinaria).WithName("ListarCatalogo").WithTags("PuntoVenta")
 .RequireAuthorization(p => p.RequireRole(Administrador, Recepcionista));
 
 // Vender: recepción y admin.
-app.MapPost("/api/ventas", async (RegistrarVentaComando cmd, RegistrarVenta uc) =>
-    ToHttp(await uc.EjecutarAsync(cmd)))
+app.MapPost("/api/ventas", async (RegistrarVentaComando cmd, ClaimsPrincipal user, RegistrarVenta uc) =>
+    VetDelToken(user) is Guid vet ? ToHttp(await uc.EjecutarAsync(cmd with { VeterinariaId = vet })) : SinVeterinaria())
 .WithName("RegistrarVenta").WithTags("PuntoVenta")
 .RequireAuthorization(p => p.RequireRole(Administrador, Recepcionista));
 
@@ -739,12 +785,12 @@ app.MapPost("/api/productos/{id:guid}/desactivar", async (Guid id, ClaimsPrincip
 // Historial de ventas de la veterinaria (Admin), con rango de fechas opcional.
 app.MapGet("/api/veterinarias/{veterinariaId:guid}/ventas", async (Guid veterinariaId, DateTime? desde, DateTime? hasta, ListarVentas uc) =>
     Results.Ok(await uc.EjecutarAsync(veterinariaId, desde, hasta)))
-.WithName("ListarVentas").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador));
+.AddEndpointFilter(MismaVeterinaria).WithName("ListarVentas").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador));
 
 // Resumen de ventas (total, conteo, desglose por método de pago) en un rango.
 app.MapGet("/api/veterinarias/{veterinariaId:guid}/ventas/resumen", async (Guid veterinariaId, DateTime? desde, DateTime? hasta, ResumenVentas uc) =>
     Results.Ok(await uc.EjecutarAsync(veterinariaId, desde, hasta)))
-.WithName("ResumenVentas").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador, Recepcionista));
+.AddEndpointFilter(MismaVeterinaria).WithName("ResumenVentas").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador, Recepcionista));
 
 // Métricas del dashboard (ventas hoy/mes, citas próximas, clientes activos). Solo Admin.
 app.MapGet("/api/veterinarias/{veterinariaId:guid}/metricas", async (Guid veterinariaId, ClaimsPrincipal user, Chiron.Application.Metricas.MetricasDashboard uc) =>
@@ -762,18 +808,21 @@ app.MapGet("/api/veterinarias/{veterinariaId:guid}/metricas", async (Guid veteri
     };
     return Results.Ok(await uc.EjecutarAsync(veterinariaId, alcance));
 })
-.WithName("MetricasDashboard").WithTags("Metricas")
+.AddEndpointFilter(MismaVeterinaria).WithName("MetricasDashboard").WithTags("Metricas")
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
 // Historial de compras de un cliente (Admin/Recepcionista).
-app.MapGet("/api/clientes/{clienteId:guid}/ventas", async (Guid clienteId, ListarVentasDeCliente uc) =>
-    Results.Ok(await uc.EjecutarAsync(clienteId)))
+app.MapGet("/api/clientes/{clienteId:guid}/ventas", async (
+    Guid clienteId, ClaimsPrincipal user, IClienteRepository clientes, ListarVentasDeCliente uc) =>
+    await EsClienteDeMiVeterinaria(user, clienteId, clientes)
+        ? Results.Ok(await uc.EjecutarAsync(clienteId))
+        : Results.NotFound())
 .WithName("VentasDeCliente").WithTags("PuntoVenta").RequireAuthorization(p => p.RequireRole(Administrador, Recepcionista));
 
 // ═══════════════════ RECORDATORIOS (admin) ═══════════════════
 app.MapPost("/api/veterinarias/{veterinariaId:guid}/recordatorios/enviar", async (Guid veterinariaId, int? dias, EnviarRecordatorios uc) =>
     Results.Ok(await uc.EjecutarAsync(veterinariaId, dias ?? 7)))
-.WithName("EnviarRecordatorios").WithTags("Recordatorios")
+.AddEndpointFilter(MismaVeterinaria).WithName("EnviarRecordatorios").WithTags("Recordatorios")
 .RequireAuthorization(p => p.RequireRole(Administrador));
 
 // Lista los recordatorios pendientes de la veterinaria para que el STAFF los vea y actúe
