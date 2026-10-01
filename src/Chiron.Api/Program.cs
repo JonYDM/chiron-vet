@@ -486,7 +486,8 @@ app.MapGet("/api/mascotas/{id:guid}", async (Guid id, ClaimsPrincipal user, Obte
     return ToHttp(await uc.EjecutarAsync(id, veterinariaId));
 })
 .WithName("ObtenerMascota").WithTags("Mascotas")
-.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista, DuenoMascota));
+// Solo staff: este endpoint valida la veterinaria, no al dueño. El dueño usa /api/portal/*.
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
 // Activar/desactivar (baja lógica) un cliente.
 app.MapPost("/api/clientes/{id:guid}/estado", async (Guid id, EstadoActivoDto dto, ClaimsPrincipal user, CambiarEstadoCliente uc) =>
@@ -551,7 +552,8 @@ app.MapPost("/api/mascotas/{id:guid}/fotos", async (
 .RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista))
 .DisableAntiforgery();
 
-// Listar la galería de una mascota (staff y también el dueño la ve en su portal).
+// Listar la galería de una mascota (staff). El dueño la ve por /api/portal/mascotas/{id}/fotos,
+// que valida que la mascota sea suya (este endpoint solo valida la veterinaria).
 app.MapGet("/api/mascotas/{id:guid}/fotos", async (Guid id, ClaimsPrincipal user, GestionFotoMascota uc) =>
 {
     if (!Guid.TryParse(user.FindFirst("veterinariaId")?.Value, out Guid veterinariaId))
@@ -559,7 +561,7 @@ app.MapGet("/api/mascotas/{id:guid}/fotos", async (Guid id, ClaimsPrincipal user
     return ToHttp(await uc.ListarAsync(veterinariaId, id));
 })
 .WithName("ListarFotosMascota").WithTags("Mascotas")
-.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista, DuenoMascota));
+.RequireAuthorization(p => p.RequireRole(Administrador, Veterinario, Recepcionista));
 
 // Eliminar una foto (cualquier staff de la veterinaria).
 app.MapDelete("/api/mascotas/{id:guid}/fotos/{fotoId:guid}", async (
@@ -824,6 +826,21 @@ app.MapGet("/api/portal/mascotas/{mascotaId:guid}/expediente",
     return Results.Ok(await expediente.EjecutarAsync(mascotaId));
 })
 .WithName("MiExpediente").WithTags("Portal").RequireAuthorization(p => p.RequireRole(DuenoMascota));
+
+// Galería de fotos de una de MIS mascotas (solo lectura; valida que la mascota sea mía).
+app.MapGet("/api/portal/mascotas/{mascotaId:guid}/fotos",
+    async (Guid mascotaId, ClaimsPrincipal user, ListarMascotasDeCliente misMascotas, GestionFotoMascota fotos) =>
+{
+    var datos = DatosDueno(user);
+    if (datos is null) return Results.BadRequest(new { error = "Token inválido." });
+
+    var mias = await misMascotas.EjecutarAsync(datos.Value.clienteId);
+    if (mias.All(m => m.Id != mascotaId))
+        return Results.Forbid();
+
+    return ToHttp(await fotos.ListarAsync(datos.Value.veterinariaId, mascotaId));
+})
+.WithName("MisFotosMascota").WithTags("Portal").RequireAuthorization(p => p.RequireRole(DuenoMascota));
 
 // Mis recordatorios (vacunas/citas próximas de mis mascotas) — H10.2, in-app.
 app.MapGet("/api/portal/mis-recordatorios", async (ClaimsPrincipal user, int? dias, GenerarRecordatorios uc) =>
