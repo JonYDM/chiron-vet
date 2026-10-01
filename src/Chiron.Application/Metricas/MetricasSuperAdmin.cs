@@ -1,3 +1,4 @@
+using Chiron.Application.Common;
 using Chiron.Application.Seguridad;
 using Chiron.Application.Sucursales;
 using Chiron.Domain.Usuarios;
@@ -67,8 +68,7 @@ public sealed class MetricasSuperAdmin
 
     public async Task<MetricasSuperAdminDto> EjecutarAsync(CancellationToken cancellationToken = default)
     {
-        DateOnly hoy = DateOnly.FromDateTime(DateTime.UtcNow);
-        DateTime ahora = DateTime.UtcNow;
+        DateOnly hoy = HoraMexico.Hoy();
 
         IReadOnlyList<VeterinariaConSucursalesDto> vets = await _sucursales.ListarAsync(cancellationToken);
         IReadOnlyList<Usuario> admins = await _usuarios.ListarPorRolAsync(RolUsuario.Administrador, cancellationToken);
@@ -112,7 +112,7 @@ public sealed class MetricasSuperAdmin
             Vencidas: cobrables.Count(x => Dias(x.Suc) < 0),
             PlanMensual: cobrables.Count(x => x.Suc.Plan == PlanSuscripcion.Mensual),
             PlanAnual: cobrables.Count(x => x.Suc.Plan == PlanSuscripcion.Anual),
-            AltasMes: vets.Count(v => v.FechaAlta.Year == ahora.Year && v.FechaAlta.Month == ahora.Month),
+            AltasMes: vets.Count(v => HoraMexico.EsDelMesActual(v.FechaAlta)),
             AdministradoresActivos: admins.Count(a => a.Activo),
             VeterinariasSinAdmin: vets.Count(v => v.Activa && !vetsConAdmin.Contains(v.Id)),
             ProximasRenovaciones: proximas,

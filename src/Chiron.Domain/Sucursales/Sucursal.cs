@@ -62,7 +62,7 @@ public sealed class Sucursal : EntidadBase
     /// heredada de una veterinaria existente).
     /// </summary>
     public static Result<Sucursal> Crear(Guid veterinariaId, string nombre, string? direccion, string? telefono,
-        PlanSuscripcion plan, decimal? precio, bool esMatriz = false, DateOnly? fechaRenovacion = null)
+        PlanSuscripcion plan, decimal? precio, bool esMatriz = false, DateOnly? fechaRenovacion = null, DateOnly? hoy = null)
     {
         if (veterinariaId == Guid.Empty)
             return Result<Sucursal>.Falla("La sucursal debe pertenecer a una veterinaria.");
@@ -70,10 +70,11 @@ public sealed class Sucursal : EntidadBase
         if (!datos.EsExito)
             return Result<Sucursal>.Falla(datos.Error!);
 
-        DateOnly hoy = DateOnly.FromDateTime(DateTime.UtcNow);
+        // "Hoy" lo decide quien llama (hora de México); UTC solo como respaldo.
+        DateOnly dia = hoy ?? DateOnly.FromDateTime(DateTime.UtcNow);
         return Result<Sucursal>.Exito(new Sucursal(
             veterinariaId, nombre.Trim(), Limpiar(direccion), Limpiar(telefono), esMatriz, plan,
-            precio ?? PrecioSugerido(plan), fechaRenovacion ?? SiguientePeriodo(hoy, plan)));
+            precio ?? PrecioSugerido(plan), fechaRenovacion ?? SiguientePeriodo(dia, plan)));
     }
 
     /// <summary>Edita datos, plan y precio. No mueve la fecha de renovación.</summary>

@@ -1,5 +1,6 @@
 using Chiron.Application.Citas;
 using Chiron.Application.Clientes;
+using Chiron.Application.Common;
 using Chiron.Application.PuntoVenta;
 using Chiron.Domain.Citas;
 
@@ -50,8 +51,10 @@ public sealed class MetricasDashboard
         Guid veterinariaId, AlcanceMetricas alcance, CancellationToken cancellationToken = default)
     {
         DateTime ahora = DateTime.UtcNow;
-        DateTime inicioDia = new(ahora.Year, ahora.Month, ahora.Day, 0, 0, 0, DateTimeKind.Utc);
-        DateTime inicioMes = new(ahora.Year, ahora.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        // Cortes de día y mes en hora de México (en UTC, las ventas después de las 6 pm
+        // contaban para el día siguiente).
+        DateTime inicioDia = HoraMexico.InicioDeHoyUtc();
+        DateTime inicioMes = HoraMexico.InicioDeMesUtc();
 
         // Métricas operativas: las ven todos los roles del staff.
         var proximas = await _citas.ObtenerProximasAsync(veterinariaId, ahora, cancellationToken);
