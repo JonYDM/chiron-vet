@@ -69,7 +69,7 @@ public sealed class VerAgenda
 
             resultado.Add(new CitaDto(
                 c.Id, c.MascotaId, mascotaNombre, clienteNombre,
-                c.FechaHora, c.Motivo, c.Estado, c.VeterinarioId));
+                c.FechaHora, c.Motivo, c.Estado, c.VeterinarioId, c.Confirmacion));
         }
 
         return resultado;
