@@ -1,5 +1,6 @@
 using Chiron.Application.Citas;
 using Chiron.Application.Clientes;
+using Chiron.Application.Common;
 using Chiron.Application.Expedientes;
 using Chiron.Application.Mascotas;
 using Chiron.Domain.Citas;
@@ -71,7 +72,9 @@ public sealed class GenerarRecordatorios
         Guid veterinariaId, int diasAnticipacion,
         bool respetarConsentimiento, CancellationToken cancellationToken)
     {
-        DateOnly hoy = DateOnly.FromDateTime(DateTime.UtcNow);
+        // "Hoy" en hora de México (no UTC): de lo contrario, después de las 6 pm lo de hoy
+        // ya cuenta como "ayer" y desaparece.
+        DateOnly hoy = HoraMexico.Hoy();
         DateOnly hasta = hoy.AddDays(diasAnticipacion);
 
         var recordatorios = new List<RecordatorioDetectado>();
@@ -99,10 +102,12 @@ public sealed class GenerarRecordatorios
         }
 
         // ── 2. Citas próximas ──
-        IReadOnlyList<Cita> citas = await _citas.ObtenerProximasAsync(veterinariaId, DateTime.UtcNow, cancellationToken);
+        // Desde el inicio de HOY (México): una cita de hoy sigue apareciendo aunque ya pasó su
+        // hora y el staff aún no la marca como atendida (solo cuentan las programadas).
+        IReadOnlyList<Cita> citas = await _citas.ObtenerProximasAsync(veterinariaId, HoraMexico.InicioDeHoyUtc(), cancellationToken);
         foreach (Cita c in citas)
         {
-            DateOnly diaCita = DateOnly.FromDateTime(c.FechaHora);
+            DateOnly diaCita = DateOnly.FromDateTime(HoraMexico.ALocal(c.FechaHora));
             if (diaCita > hasta) continue;  // fuera de la ventana de anticipación
 
             Mascota? mascota = await ObtenerMascotaAsync(cacheMascotas, c.MascotaId, cancellationToken);
