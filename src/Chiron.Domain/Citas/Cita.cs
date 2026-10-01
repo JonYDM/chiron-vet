@@ -27,6 +27,9 @@ public sealed class Cita : EntidadBase
     /// <summary>Veterinario asignado a la cita (opcional). Referencia a un Usuario.</summary>
     public Guid? VeterinarioId { get; private set; }
 
+    /// <summary>Respuesta del dueño (va / no va). Pendiente hasta que responda desde el portal.</summary>
+    public ConfirmacionCita Confirmacion { get; private set; }
+
     private Cita(Guid veterinariaId, Guid mascotaId, DateTime fechaHora, string motivo, Guid? veterinarioId)
     {
         VeterinariaId = veterinariaId;
@@ -35,6 +38,7 @@ public sealed class Cita : EntidadBase
         Motivo = motivo;
         Estado = EstadoCita.Programada;
         VeterinarioId = veterinarioId;
+        Confirmacion = ConfirmacionCita.Pendiente;
     }
 
     /// <summary>
@@ -65,6 +69,18 @@ public sealed class Cita : EntidadBase
 
     /// <summary>Marca que el cliente no asistió. Solo válido si estaba programada.</summary>
     public Result<bool> MarcarNoAsistio() => CambiarEstado(EstadoCita.NoAsistio);
+
+    /// <summary>
+    /// Respuesta del dueño desde el portal (puede cambiarla mientras la cita siga programada).
+    /// No cancela la cita: avisa a la clínica, que decide (reagendar, cancelar, etc.).
+    /// </summary>
+    public Result<bool> ResponderAsistencia(bool asistira)
+    {
+        if (Estado != EstadoCita.Programada)
+            return Result<bool>.Falla("Esta cita ya no está programada.");
+        Confirmacion = asistira ? ConfirmacionCita.Confirmada : ConfirmacionCita.NoAsistira;
+        return Result<bool>.Exito(true);
+    }
 
     /// <summary>
     /// Cambia el estado validando que solo se pueda transicionar desde 'Programada'.
